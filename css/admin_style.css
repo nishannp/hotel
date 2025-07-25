@@ -1,0 +1,614 @@
+/* css/admin_style.css */
+
+/* --- Google Font & Basic Reset --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #3498db;
+    --dark-color: #2c3e50;
+    --light-color: #ecf0f1;
+    --grey-color: #bdc3c7;
+    --background-color: #f4f6f9;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--background-color);
+    color: #333;
+}
+
+/* --- Sidebar Navigation --- */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 250px;
+    height: 100%;
+    background: var(--dark-color);
+    color: var(--light-color);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.sidebar-header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #3e5165;
+}
+
+.sidebar-header h2 {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.sidebar-nav {
+    flex-grow: 1;
+    list-style: none;
+    padding: 20px 0;
+}
+
+.sidebar-nav li a {
+    display: flex;
+    align-items: center;
+    padding: 15px 25px;
+    color: var(--light-color);
+    text-decoration: none;
+    font-size: 1rem;
+    transition: background 0.3s ease, padding-left 0.3s ease;
+}
+
+.sidebar-nav li a:hover,
+.sidebar-nav li a.active {
+    background: var(--primary-color);
+    padding-left: 35px;
+    border-left: 5px solid var(--light-color);
+}
+
+.sidebar-nav li a i {
+    font-size: 1.2rem;
+    margin-right: 15px;
+    width: 20px;
+    text-align: center;
+}
+
+.logout-link {
+    margin-top: auto;
+}
+
+/* --- Main Content Area --- */
+.main-content {
+    margin-left: 250px;
+    padding: 25px;
+    transition: margin-left 0.3s ease;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.content-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.user-info {
+    font-size: 1rem;
+    color: #555;
+}
+
+/* --- Dashboard Cards --- */
+.card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    padding: 25px;
+}
+
+.stat-card .icon-container {
+    font-size: 2.5rem;
+    padding: 20px;
+    border-radius: 50%;
+    margin-right: 20px;
+    color: #fff;
+}
+
+.stat-card .info h4 {
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.stat-card .info p {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+.bg-blue { background-color: #3498db; }
+.bg-green { background-color: #2ecc71; }
+.bg-orange { background-color: #e67e22; }
+.bg-red { background-color: #e74c3c; }
+
+
+
+/* ADD THIS TO THE END OF css/admin_style.css */
+
+/* --- POS Table Grid Styles --- */
+.tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+}
+
+.table-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.table-card .icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.table-card h4 {
+    margin-bottom: 5px;
+    font-size: 1.2rem;
+}
+
+.table-card p {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Status-specific styles */
+.table-card.available {
+    background-color: #e8f5e9; /* Light green */
+    border-left: 5px solid #4caf50; /* Green */
+}
+.table-card.available:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.2);
+}
+
+.table-card.occupied {
+    background-color: #fff3e0; /* Light orange */
+    border-left: 5px solid #ff9800; /* Orange */
+}
+.table-card.occupied:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(255, 152, 0, 0.2);
+}
+
+.table-card.reserved {
+    background-color: #fce4ec; /* Light pink */
+    border-left: 5px solid #e91e63; /* Pink */
+}
+
+/* --- Order Modal Styles --- */
+#orderModal .modal-content {
+    max-width: 800px;
+}
+#orderItemsList {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+
+/* ADD THIS TO THE END OF css/admin_style.css */
+
+/* --- Simplified POS Two-Panel Layout --- */
+.pos-container {
+    display: flex;
+    height: calc(100vh - 120px); /* Full viewport height minus header/padding */
+    gap: 20px;
+}
+
+.pos-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-main {
+    flex-grow: 1;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.pos-sidebar-header, .pos-main-header {
+    padding: 15px 20px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pos-sidebar-body {
+    padding: 15px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.pos-main-body {
+    padding: 25px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* POS Table Cards (in sidebar) */
+.table-card-sm {
+    padding: 15px 10px;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+.table-card-sm.selected {
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+    box-shadow: 0 2px 10px rgba(52, 152, 219, 0.3);
+}
+
+/* Status colors for small cards */
+.table-card-sm.available { background-color: #e8f5e9; }
+.table-card-sm.occupied { background-color: #fff3e0; }
+
+/* POS Main Workspace Styles */
+.order-ticket-items {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 5px;
+    margin: 15px 0;
+    padding: 10px;
+}
+.order-ticket-total {
+    text-align: right;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 15px 0;
+}
+.pos-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+.pos-actions button {
+    flex-grow: 1;
+    padding: 12px;
+    border-radius: 5px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+
+/* ADD THIS TO THE END OF css/admin_style.css */
+
+/* --- VISUAL POS Overhaul Styles --- */
+
+/* Main Workspace Header */
+.pos-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Category Tabs */
+.pos-category-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    padding: 0 20px;
+    background-color: #f8f9fa;
+}
+.pos-category-tab {
+    padding: 15px 20px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+.pos-category-tab:hover {
+    color: var(--primary-color);
+}
+.pos-category-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* Menu Item Grid */
+.pos-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+.menu-item-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+    background-color: #fff;
+    overflow: hidden;
+}
+.menu-item-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.menu-item-card .item-image {
+    width: 100%;
+    height: 100px;
+    background-color: #f0f0f0;
+    background-size: cover;
+    background-position: center;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+.menu-item-card .item-info {
+    padding: 10px;
+}
+.menu-item-card .item-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.menu-item-card .item-price {
+    color: var(--primary-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Visual Staff Selector */
+.staff-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 15px;
+    padding: 20px 0;
+}
+.staff-card {
+    padding: 15px 10px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.staff-card:hover, .staff-card.selected {
+    border-color: var(--primary-color);
+    background-color: #eaf5ff;
+}
+.staff-card i {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+.staff-card .staff-name {
+    font-weight: 500;
+}
+
+
+/* ADD THIS TO THE END OF css/admin_style.css */
+
+/* --- Payments Page - Two-Panel "Workstation" Layout --- */
+.payment-workstation-container {
+    display: flex;
+    height: calc(100vh - 120px); /* Full viewport height minus header/padding */
+    gap: 20px;
+}
+
+.payment-queue-sidebar {
+    width: 400px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.payment-terminal-main {
+    flex-grow: 1;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.payment-queue-header, .payment-terminal-header {
+    padding: 15px 20px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.payment-queue-body {
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.payment-terminal-body {
+    padding: 25px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* Individual Order Card in the Queue */
+.order-card {
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border-left: 4px solid transparent;
+}
+
+.order-card:hover {
+    border-color: #ddd;
+    background-color: #f9f9f9;
+}
+
+.order-card.selected {
+    border-left-color: var(--primary-color);
+    background-color: #eaf5ff;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+.order-card .order-card-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+
+.order-card .order-card-body {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Payment Terminal Form Styles */
+.payment-form-group {
+    margin-bottom: 20px;
+}
+.payment-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+}
+.payment-form-group input,
+.payment-form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+.payment-form-group input#amountPaid {
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-align: center;
+    color: var(--primary-color);
+}
+.confirm-payment-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 5px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.confirm-payment-btn:hover {
+    background-color: #2980b9;
+}
+.confirm-payment-btn:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+
+/* ADD THIS TO THE END OF css/admin_style.css */
+
+/* --- Itemized Receipt Styles in Payment Terminal --- */
+.receipt-items-container {
+    margin-bottom: 20px;
+    max-height: 200px; /* Or adjust as needed */
+    overflow-y: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 5px;
+    padding: 10px;
+}
+.receipt-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 5px;
+    font-size: 0.95rem;
+}
+.receipt-item:not(:last-child) {
+    border-bottom: 1px dashed #eee;
+}
+.receipt-item .item-name {
+    color: #333;
+}
+.receipt-item .item-subtotal {
+    font-weight: 500;
+    color: #555;
+}
+
+/* --- Toast Notification Styles --- */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #2ecc71; /* Green for success */
+    color: white;
+    padding: 15px 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    z-index: 9999;
+    font-size: 1rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+.toast-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast-notification.error {
+    background-color: #e74c3c; /* Red for error */
+}
