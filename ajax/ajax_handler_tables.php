@@ -1,4 +1,5 @@
 <?php
+
 // ajax/ajax_handler_tables.php
 require_once '../config.php';
 

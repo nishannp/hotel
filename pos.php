@@ -1,72 +1,89 @@
 <?php 
 // pos.php - The Ultimate Visual POS Experience
 require_once 'includes/header.php'; 
+// It's better to set the title via a variable passed to the header
+// but for now, this JS is fine.
 echo "<script>document.querySelector('.content-header h1').textContent = 'Visual POS Terminal';</script>";
 ?>
 
-<div class="pos-container" style="gap: 0; background-color: #f4f6f9;">
+<!-- This is the main container for the POS view -->
+<div class="pos-container">
     
     <!-- Left Panel: The Live Order Ticket -->
-    <aside class="pos-sidebar" style="width: 350px;">
+    <aside id="posOrderTicket" class="pos-sidebar">
         <div class="pos-sidebar-header" id="ticketHeader">No Active Order</div>
-        <div class="pos-main-body" style="padding: 15px;">
+        <div class="pos-sidebar-body">
             <div id="ticketWelcomeView">
-                <p style="text-align: center; color: #777; margin-top: 50px;">
-                    <i class="fas fa-tablet-alt" style="font-size: 3rem; color: #ddd;"></i><br><br>
-                    Select a table and an order to begin.
-                </p>
+                <i class="fas fa-receipt"></i>
+                <p>Select a table to view or start an order.</p>
             </div>
             <div id="ticketOrderView" style="display: none;">
-                <div class="order-ticket-items" id="orderItemsList" style="max-height: calc(100vh - 380px);"></div>
-                <div class="order-ticket-total" id="orderTotal">Total: $0.00</div>
+                <div class="order-ticket-items" id="orderItemsList">
+                    <!-- JS will populate this -->
+                </div>
+                <div class="order-ticket-total">
+                    <span>Total</span>
+                    <span id="orderTotal">$0.00</span>
+                </div>
                 <div class="pos-actions">
-                    <button type="button" id="cancelOrderBtn" style="background-color: #c0392b;">Cancel</button>
-                    <button type="button" id="completeOrderBtn" style="background-color: #27ae60;">Complete</button>
+                    <button type="button" id="cancelOrderBtn">Cancel Order</button>
+                    <button type="button" id="completeOrderBtn">Finalize & Pay</button>
                 </div>
             </div>
         </div>
     </aside>
 
     <!-- Center Panel: The Visual Menu -->
-    <main class="pos-main">
-        <div class="pos-category-tabs" id="categoryTabs"></div>
-        <div class="pos-menu-grid" id="menuGrid"></div>
+    <main id="posMenu" class="pos-main">
+        <div class="pos-category-tabs" id="categoryTabs">
+            <!-- JS will populate categories -->
+        </div>
+        <div class="pos-menu-grid" id="menuGrid">
+            <!-- JS will populate menu items -->
+        </div>
     </main>
 
     <!-- Right Panel: Tables & Staff -->
-    <aside class="pos-sidebar" style="width: 250px;">
+    <aside id="posTablesSidebar" class="pos-sidebar">
         <div class="pos-sidebar-header">
-            Tables <button id="refreshBtn" style="float: right; font-size: 0.8rem; padding: 5px 10px;">↻</button>
+            <span>Tables</span>
+            <button id="refreshBtn" title="Refresh Tables">↻</button>
         </div>
-        <div id="tablesGrid" class="pos-sidebar-body" style="grid-template-columns: 1fr 1fr;"></div>
+        <div id="tablesGrid" class="pos-sidebar-body">
+            <!-- JS will populate tables -->
+        </div>
     </aside>
 
 </div>
 
 <!-- Modal for Starting a New Order with Visual Staff Selection -->
 <div id="startOrderModal" class="modal">
-    <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-content">
         <div class="modal-header">
-            <h2 id="startOrderModalTitle">Start Order</h2>
+            <h2 id="startOrderModalTitle">Start New Order</h2>
             <span class="close-button">×</span>
         </div>
         <div class="modal-body">
-            <p>Please select the staff member creating this order.</p>
+            <p>Select the staff member creating this order for <strong id="modalTableName"></strong>.</p>
             <input type="hidden" id="startOrderTableId">
-            <div class="staff-selector-grid" id="staffSelector"></div>
+            <div class="staff-selector-grid" id="staffSelector">
+                <!-- JS will populate staff -->
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Toast Notification Placeholder -->
+<div id="toastNotification" class="toast-notification"></div>
 
 <script>
 $(document).ready(function() {
     // --- Globals & Configuration ---
     let allMenuItems = [];
     let currentOrderId = null;
-    const actionPosAjaxUrl = 'ajax/ajax_handler_pos.php'; // For actions
+    const actionPosAjaxUrl = 'ajax/ajax_handler_pos.php';
 
-    // --- Main UI Elements ---
+    // --- UI Elements ---
     const tablesGrid = $('#tablesGrid');
     const categoryTabs = $('#categoryTabs');
     const menuGrid = $('#menuGrid');
@@ -78,26 +95,31 @@ $(document).ready(function() {
     const startOrderModal = $('#startOrderModal');
 
     // --- Core Functions ---
+
+    // Function to show toast notifications
+    function showToast(message, isError = false) {
+        const toast = $('#toastNotification');
+        toast.text(message).removeClass('error').toggleClass('error', isError);
+        toast.addClass('show');
+        setTimeout(() => toast.removeClass('show'), 3000);
+    }
+
     function loadInitialData() {
-        // 1. Load Tables
         loadTables();
         
-        // 2. Load Menu Data (Categories & Items)
         $.getJSON('ajax/ajax_handler_pos_menu.php', function(data) {
             if (data.success) {
                 allMenuItems = data.menu_items;
-                // Populate category tabs
-                categoryTabs.empty();
-                categoryTabs.append('<div class="pos-category-tab active" data-category-id="all">All Items</div>');
+                categoryTabs.empty().append('<div class="pos-category-tab active" data-category-id="all">All Items</div>');
                 data.categories.forEach(cat => {
                     categoryTabs.append(`<div class="pos-category-tab" data-category-id="${cat.CategoryID}">${cat.CategoryName}</div>`);
                 });
-                // Display all items initially
                 filterMenu('all');
+            } else {
+                showToast('Failed to load menu.', true);
             }
-        });
+        }).fail(() => showToast('Error communicating with server for menu.', true));
         
-        // 3. Load Staff for the modal
         $.getJSON('ajax/ajax_handler_staff.php?action=fetchAll', function(data) {
             if (data.success) {
                 const staffGrid = $('#staffSelector').empty();
@@ -108,24 +130,32 @@ $(document).ready(function() {
                             <div class="staff-name">${s.FirstName}</div>
                         </div>`);
                 });
+            } else {
+                showToast('Failed to load staff.', true);
             }
-        });
+        }).fail(() => showToast('Error communicating with server for staff.', true));
     }
 
     function loadTables() {
         $.getJSON('ajax/ajax_handler_pos_simple.php', function(data) {
-            if (!data.success) return;
+            if (!data.success) {
+                showToast('Could not refresh tables.', true);
+                return;
+            }
             tablesGrid.empty();
             data.tables.forEach(table => {
                 const activeOrder = data.active_orders[table.TableID];
                 const card = $('<div></div>')
-                    .addClass('table-card-sm').addClass(activeOrder ? 'occupied' : 'available')
+                    .addClass('table-card-sm')
+                    .addClass(activeOrder ? 'occupied' : 'available')
                     .data({ tableId: table.TableID, tableNumber: table.TableNumber })
-                    .html(`<i class="fas fa-chair"></i><br>Table ${table.TableNumber}`);
-                if (activeOrder) card.data('orderId', activeOrder.OrderID);
+                    .html(`<i class="fas fa-chair"></i> Table ${table.TableNumber}`);
+                if (activeOrder) {
+                    card.data('orderId', activeOrder.OrderID);
+                }
                 tablesGrid.append(card);
             });
-        });
+        }).fail(() => showToast('Error communicating with server for tables.', true));
     }
 
     function filterMenu(categoryId) {
@@ -134,13 +164,19 @@ $(document).ready(function() {
             ? allMenuItems
             : allMenuItems.filter(item => item.CategoryID == categoryId);
         
+        if (itemsToDisplay.length === 0 && categoryId !== 'all') {
+            menuGrid.html('<p style="text-align:center; color:#888; padding:40px;">No items in this category.</p>');
+            return;
+        }
+
         itemsToDisplay.forEach(item => {
             const imageStyle = item.ImageUrl ? `background-image: url('${item.ImageUrl}')` : '';
+            const imageContent = !item.ImageUrl ? '<i class="fas fa-utensils"></i>' : '';
             const itemCard = $(`
                 <div class="menu-item-card" data-menu-item-id="${item.MenuItemID}">
-                    <div class="item-image" style="${imageStyle}">${!item.ImageUrl ? '<i class="fas fa-utensils"></i>' : ''}</div>
+                    <div class="item-image" style="${imageStyle}">${imageContent}</div>
                     <div class="item-info">
-                        <div class="item-name">${item.Name}</div>
+                        <div class="item-name" title="${item.Name}">${item.Name}</div>
                         <div class="item-price">$${parseFloat(item.Price).toFixed(2)}</div>
                     </div>
                 </div>
@@ -150,46 +186,65 @@ $(document).ready(function() {
     }
 
     function renderOrderTicket(orderId) {
+        if (!orderId) {
+            resetTicket();
+            return;
+        }
         currentOrderId = orderId;
         $.getJSON(`${actionPosAjaxUrl}?action=getOrderDetails&order_id=${orderId}`, function(data) {
             if (data.success) {
                 const order = data.data.orderInfo;
                 const items = data.data.items;
-                ticketHeader.text(`Order #${order.OrderID} (Table ${order.TableID})`);
-                orderTotal.text(`Total: $${parseFloat(order.TotalAmount).toFixed(2)}`);
+                
+                // Highlight the correct table
+                $('.table-card-sm').removeClass('selected');
+                $(`.table-card-sm[data-table-id='${order.TableID}']`).addClass('selected');
+
+                ticketHeader.text(`Order #${order.OrderID} | Table ${order.TableID}`);
+                orderTotal.text(`$${parseFloat(order.TotalAmount).toFixed(2)}`);
                 
                 orderItemsList.empty();
                 if (items.length > 0) {
                     items.forEach(item => {
                         orderItemsList.append(`
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding: 10px 5px; border-bottom: 1px dashed #eee;">
-                                <div>${item.Name}</div>
-                                <div>
-                                    <span class="qty-btn" data-detail-id="${item.OrderDetailID}" data-qty="${item.Quantity}" data-change="-1">-</span>
-                                    <b>${item.Quantity}</b>
+                            <div class="order-ticket-item">
+                                <div class="item-name">${item.Name}</div>
+                                <div class="item-controls">
+                                    <span class="qty-btn" data-detail-id="${item.OrderDetailID}" data-qty="${item.Quantity}" data-change="-1">−</span>
+                                    <b class="item-qty">${item.Quantity}</b>
                                     <span class="qty-btn" data-detail-id="${item.OrderDetailID}" data-qty="${item.Quantity}" data-change="1">+</span>
-                                    <span style="display:inline-block; width: 80px; text-align:right;">$${parseFloat(item.Subtotal).toFixed(2)}</span>
+                                    <span class="item-subtotal">$${parseFloat(item.Subtotal).toFixed(2)}</span>
                                 </div>
                             </div>`);
                     });
                 } else {
-                    orderItemsList.html('<p style="text-align:center; color:#888; padding:20px;">Click an item to add it to the order.</p>');
+                    orderItemsList.html('<p style="text-align:center; color:#888; padding:20px;">Click an item from the menu to add it to this order.</p>');
                 }
                 ticketWelcomeView.hide();
                 ticketOrderView.show();
+            } else {
+                showToast(data.message || 'Failed to load order details.', true);
+                resetTicket();
             }
+        }).fail(() => {
+            showToast('Error communicating with server for order details.', true);
+            resetTicket();
         });
     }
 
     function resetTicket() {
         currentOrderId = null;
+        $('.table-card-sm').removeClass('selected');
         ticketHeader.text('No Active Order');
         ticketWelcomeView.show();
         ticketOrderView.hide();
     }
 
     // --- Event Handlers ---
-    $('#refreshBtn').on('click', loadTables);
+    $('#refreshBtn').on('click', function() {
+        showToast('Refreshing tables...');
+        loadTables();
+    });
     
     categoryTabs.on('click', '.pos-category-tab', function() {
         $('.pos-category-tab').removeClass('active');
@@ -199,10 +254,16 @@ $(document).ready(function() {
     
     tablesGrid.on('click', '.table-card-sm', function() {
         const card = $(this);
+        if (card.hasClass('selected')) {
+            resetTicket();
+            return;
+        }
+        
         $('.table-card-sm').removeClass('selected');
         card.addClass('selected');
+
         if (card.hasClass('available')) {
-            $('#startOrderModalTitle').text(`Start Order for Table ${card.data('tableNumber')}`);
+            $('#modalTableName').text(`Table ${card.data('tableNumber')}`);
             $('#startOrderTableId').val(card.data('tableId'));
             $('.staff-card').removeClass('selected');
             startOrderModal.show();
@@ -212,21 +273,30 @@ $(document).ready(function() {
     });
     
     startOrderModal.on('click', '.staff-card', function() {
-        const staffId = $(this).data('staffId');
+        const staffCard = $(this);
+        staffCard.addClass('selected'); // Visual feedback
+        const staffId = staffCard.data('staffId');
         const tableId = $('#startOrderTableId').val();
         
+        // Prevent multiple clicks
+        staffCard.parent().find('.staff-card').css('pointer-events', 'none');
+
         $.post(actionPosAjaxUrl, { action: 'createOrder', table_id: tableId, staff_id: staffId }, function(data) {
             if (data.success) {
+                showToast(`Order #${data.order_id} created!`);
                 startOrderModal.hide();
-                loadTables();
+                loadTables(); // This will show the table as occupied
                 renderOrderTicket(data.order_id);
-            } else { alert(data.message); }
-        }, 'json');
+            } else {
+                showToast(data.message || 'Failed to create order.', true);
+            }
+        }, 'json').fail(() => showToast('Error communicating with server.', true))
+        .always(() => staffCard.parent().find('.staff-card').css('pointer-events', 'auto'));
     });
 
     menuGrid.on('click', '.menu-item-card', function() {
         if (!currentOrderId) {
-            alert("Please select a table and start an order first.");
+            showToast("Please select an active order first.", true);
             return;
         }
         $.post(actionPosAjaxUrl, {
@@ -235,9 +305,12 @@ $(document).ready(function() {
             menu_item_id: $(this).data('menuItemId'),
             quantity: 1
         }, function(data) {
-            if (!data.success) alert("Error: " + data.message);
+            if (!data.success) {
+                showToast(data.message || 'Error adding item.', true);
+            }
+            // Always re-render to show updated state or error message from trigger
             renderOrderTicket(currentOrderId);
-        }, 'json');
+        }, 'json').fail(() => showToast('Error communicating with server.', true));
     });
     
     orderItemsList.on('click', '.qty-btn', function() {
@@ -245,22 +318,37 @@ $(document).ready(function() {
         const newQty = $(this).data('qty') + $(this).data('change');
         
         $.post(actionPosAjaxUrl, { action: 'updateItemQuantity', order_detail_id: detailId, new_quantity: newQty }, function(data) {
-            if (!data.success) alert("Error: " + data.message);
+            if (!data.success) {
+                showToast(data.message || 'Error updating quantity.', true);
+            }
             renderOrderTicket(currentOrderId);
-        }, 'json');
+        }, 'json').fail(() => showToast('Error communicating with server.', true));
     });
 
     $('#ticketOrderView').on('click', '#completeOrderBtn, #cancelOrderBtn', function() {
-        const status = $(this).attr('id') === 'completeOrderBtn' ? 'Completed' : 'Cancelled';
-        if (confirm(`Are you sure you want to mark this order as ${status}?`)) {
-            $.post(actionPosAjaxUrl, { action: 'updateOrderStatus', order_id: currentOrderId, status: status }, function() {
-                loadTables();
-                resetTicket();
-            }, 'json');
+        const isCompleting = $(this).attr('id') === 'completeOrderBtn';
+        const status = isCompleting ? 'Completed' : 'Cancelled';
+        const verb = isCompleting ? 'complete' : 'cancel';
+        
+        if (confirm(`Are you sure you want to ${verb} this order?`)) {
+            $.post(actionPosAjaxUrl, { action: 'updateOrderStatus', order_id: currentOrderId, status: status }, function(data) {
+                if (data.success) {
+                    showToast(`Order marked as ${status}.`);
+                    loadTables();
+                    resetTicket();
+                } else {
+                    showToast(data.message || 'Failed to update order status.', true);
+                }
+            }, 'json').fail(() => showToast('Error communicating with server.', true));
         }
     });
 
     startOrderModal.on('click', '.close-button', () => startOrderModal.hide());
+    $(document).on('keydown', function(event) {
+        if (event.key === "Escape") {
+            startOrderModal.hide();
+        }
+    });
 
     // --- Initial Load ---
     loadInitialData();

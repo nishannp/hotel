@@ -7,6 +7,15 @@ define('DB_USERNAME', 'root'); // Your database username (e.g., 'root')
 define('DB_PASSWORD', '');     // Your database password
 define('DB_NAME', 'ashish_hotel');  // The name of your database
 
+// --- Site and Upload Configuration ---
+// Base URL of the site. Ends with a slash '/'.
+define('SITE_URL', 'http://localhost/hotel/');
+// The absolute path to the uploads directory. Ends with a slash '/'.
+define('UPLOADS_DIR', __DIR__ . '/uploads/');
+// The public URL for the uploads directory. Ends with a slash '/'.
+define('UPLOADS_URL', SITE_URL . 'uploads/');
+
+
 // Create a new mysqli connection object
 $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
 

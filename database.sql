@@ -34,6 +34,7 @@ CREATE TABLE staff (
     Role ENUM('Waiter', 'Chef', 'Manager', 'Cashier') NOT NULL,
     PhoneNumber VARCHAR(20) UNIQUE,
     HireDate DATE NOT NULL,
+    ImageUrl VARCHAR(255), -- URL for the staff member's profile picture
     IsActive BOOLEAN DEFAULT TRUE
 );
 
