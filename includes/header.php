@@ -99,6 +99,21 @@ function isActive($page) {
                     <i class="fa-solid fa-seedling"></i> Ingredients
                 </a>
             </li>
+            <li>
+                <a href="suppliers.php" class="<?php echo isActive('suppliers.php'); ?>">
+                    <i class="fa-solid fa-truck-field"></i> Suppliers
+                </a>
+            </li>
+            <li>
+                <a href="purchase_orders.php" class="<?php echo isActive('purchase_orders.php'); ?>">
+                    <i class="fa-solid fa-shopping-cart"></i> Purchase Orders
+                </a>
+            </li>
+            <li>
+                <a href="low_stock.php" class="<?php echo isActive('low_stock.php'); ?>">
+                    <i class="fa-solid fa-exclamation-triangle"></i> Low Stock Alerts
+                </a>
+            </li>
              <li>
                 <a href="staff.php" class="<?php echo isActive('staff.php'); ?>">
                     <i class="fa-solid fa-user-tie"></i> Staff

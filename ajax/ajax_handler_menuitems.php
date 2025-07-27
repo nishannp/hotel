@@ -105,60 +105,95 @@ switch ($action) {
         $stmt->close();
         break;
 
-    case 'save':
-        $id = $_POST['menu_item_id'] ?? null;
-        $name = trim($_POST['item_name']);
-        $desc = trim($_POST['item_description']);
-        $price = $_POST['item_price'];
-        $category_id = $_POST['item_category'];
-        $is_available = isset($_POST['is_available']) ? 1 : 0;
-        $image_path = $_POST['existing_image_path'] ?? ''; // Keep existing image by default
-
-        // --- Handle File Upload ---
-        if (isset($_FILES['item_image']) && $_FILES['item_image']['error'] == 0) {
-            $upload_dir = UPLOADS_DIR . 'menu_items/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-
-            // Delete old image if a new one is uploaded during an update
-            if (!empty($id) && !empty($image_path)) {
-                 $old_image_full_path = UPLOADS_DIR . $image_path;
-                 if (file_exists($old_image_full_path)) {
-                     unlink($old_image_full_path);
-                 }
-            }
-
-            $file_name = uniqid() . '-' . basename($_FILES["item_image"]["name"]);
-            $target_file = $upload_dir . $file_name;
-            $image_path = 'menu_items/' . $file_name; // Relative path for DB
-
-            // Resize and move uploaded file
-            if (!cropAndResizeImage($_FILES['item_image']['tmp_name'], $target_file)) {
-                 $response['message'] = 'Failed to upload and resize image.';
-                 echo json_encode($response);
-                 exit;
-            }
+    case 'getMenuItemIngredients':
+        $id = $_GET['id'] ?? 0;
+        $stmt = $conn->prepare("SELECT IngredientID, QuantityRequired FROM menu_item_ingredients WHERE MenuItemID = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $ingredients = [];
+        while ($row = $result->fetch_assoc()) {
+            $ingredients[] = $row;
         }
-
-        if (empty($id)) { // ADD
-            $sql = "INSERT INTO menu_items (Name, Description, Price, CategoryID, IsAvailable, ImageUrl) VALUES (?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssdiis", $name, $desc, $price, $category_id, $is_available, $image_path);
-            $message = 'Menu item added successfully.';
-        } else { // UPDATE
-            $sql = "UPDATE menu_items SET Name = ?, Description = ?, Price = ?, CategoryID = ?, IsAvailable = ?, ImageUrl = ? WHERE MenuItemID = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssdiisi", $name, $desc, $price, $category_id, $is_available, $image_path, $id);
-            $message = 'Menu item updated successfully.';
-        }
-        
-        if ($stmt->execute()) {
-            $response = ['success' => true, 'message' => $message];
-        } else {
-            $response['message'] = 'Error: ' . $stmt->error;
-        }
+        $response = ['success' => true, 'data' => $ingredients];
         $stmt->close();
+        break;
+
+    case 'save':
+        $conn->begin_transaction(); // <-- Start Transaction
+        try {
+            $id = $_POST['menu_item_id'] ?? null;
+            $name = trim($_POST['item_name']);
+            $desc = trim($_POST['item_description']);
+            $price = $_POST['item_price'];
+            $category_id = $_POST['item_category'];
+            $is_available = isset($_POST['is_available']) ? 1 : 0;
+            $image_path = $_POST['existing_image_path'] ?? '';
+
+            if (isset($_FILES['item_image']) && $_FILES['item_image']['error'] == 0) {
+                $upload_dir = UPLOADS_DIR . 'menu_items/';
+                if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+
+                if (!empty($id) && !empty($image_path)) {
+                    $old_image_full_path = UPLOADS_DIR . $image_path;
+                    if (file_exists($old_image_full_path)) unlink($old_image_full_path);
+                }
+
+                $file_name = uniqid() . '-' . basename($_FILES["item_image"]["name"]);
+                $target_file = $upload_dir . $file_name;
+                $image_path = 'menu_items/' . $file_name;
+
+                if (!cropAndResizeImage($_FILES['item_image']['tmp_name'], $target_file)) {
+                    throw new Exception('Failed to upload and resize image.');
+                }
+            }
+
+            $menu_item_id = $id;
+            if (empty($id)) { // ADD
+                $sql = "INSERT INTO menu_items (Name, Description, Price, CategoryID, IsAvailable, ImageUrl) VALUES (?, ?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("ssdiis", $name, $desc, $price, $category_id, $is_available, $image_path);
+                if (!$stmt->execute()) throw new Exception($stmt->error);
+                $menu_item_id = $stmt->insert_id;
+                $message = 'Menu item added successfully.';
+                $stmt->close();
+            } else { // UPDATE
+                $sql = "UPDATE menu_items SET Name = ?, Description = ?, Price = ?, CategoryID = ?, IsAvailable = ?, ImageUrl = ? WHERE MenuItemID = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("ssdiisi", $name, $desc, $price, $category_id, $is_available, $image_path, $id);
+                if (!$stmt->execute()) throw new Exception($stmt->error);
+                $message = 'Menu item updated successfully.';
+                $stmt->close();
+            }
+
+            // --- Handle Ingredients ---
+            // 1. Delete existing ingredients for this menu item
+            $stmt_delete = $conn->prepare("DELETE FROM menu_item_ingredients WHERE MenuItemID = ?");
+            $stmt_delete->bind_param("i", $menu_item_id);
+            if (!$stmt_delete->execute()) throw new Exception($stmt_delete->error);
+            $stmt_delete->close();
+
+            // 2. Insert new ingredients
+            if (isset($_POST['ingredients'])) {
+                $ingredients = json_decode($_POST['ingredients'], true);
+                if (is_array($ingredients) && !empty($ingredients)) {
+                    $sql_ing = "INSERT INTO menu_item_ingredients (MenuItemID, IngredientID, QuantityRequired) VALUES (?, ?, ?)";
+                    $stmt_ing = $conn->prepare($sql_ing);
+                    foreach ($ingredients as $ing) {
+                        $stmt_ing->bind_param("iid", $menu_item_id, $ing['ingredient_id'], $ing['quantity']);
+                        if (!$stmt_ing->execute()) throw new Exception($stmt_ing->error);
+                    }
+                    $stmt_ing->close();
+                }
+            }
+            
+            $conn->commit(); // <-- Commit Transaction
+            $response = ['success' => true, 'message' => $message];
+
+        } catch (Exception $e) {
+            $conn->rollback(); // <-- Rollback on error
+            $response['message'] = 'Error: ' . $e->getMessage();
+        }
         break;
 
     case 'delete':
@@ -179,7 +214,7 @@ switch ($action) {
         }
         $stmt->close();
 
-        // Then, delete the database record
+        // Then, delete the database record. The ON DELETE CASCADE in the DB will handle menu_item_ingredients.
         $stmt = $conn->prepare("DELETE FROM menu_items WHERE MenuItemID = ?");
         $stmt->bind_param("i", $id);
         if ($stmt->execute()) {

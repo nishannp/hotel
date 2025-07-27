@@ -249,3 +249,155 @@ DELIMITER ;
 -- #####################################################################
 -- # End of Schema
 -- #####################################################################
+
+-- #####################################################################
+-- # MODULE 1: SUPPLIER AND PURCHASE ORDER MANAGEMENT (SIMPLIFIED)
+-- #####################################################################
+
+--
+-- Table: suppliers
+-- Description: Stores simplified information for all vendors and suppliers.
+--
+CREATE TABLE suppliers (
+    SupplierID INT PRIMARY KEY AUTO_INCREMENT,
+    SupplierName VARCHAR(100) NOT NULL,
+    ContactPerson VARCHAR(100),
+    PhoneNumber VARCHAR(20) NOT NULL,
+    IsActive BOOLEAN DEFAULT TRUE
+);
+
+--
+-- Table: purchase_orders
+-- Description: Master table for purchase orders (POs), simplified by removing StaffID.
+--
+CREATE TABLE purchase_orders (
+    PurchaseOrderID INT PRIMARY KEY AUTO_INCREMENT,
+    SupplierID INT NOT NULL,
+    OrderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ExpectedDeliveryDate DATE,
+    ActualDeliveryDate DATE, -- To be filled upon receipt of goods
+    Status ENUM('Draft', 'Placed', 'Shipped', 'Received', 'Cancelled') DEFAULT 'Draft',
+    TotalCost DECIMAL(12, 2) DEFAULT 0.00,
+    FOREIGN KEY (SupplierID) REFERENCES suppliers(SupplierID)
+);
+
+--
+-- Table: purchase_order_details
+-- Description: Detail table for each ingredient within a purchase order.
+--
+CREATE TABLE purchase_order_details (
+    PurchaseOrderDetailID INT PRIMARY KEY AUTO_INCREMENT,
+    PurchaseOrderID INT NOT NULL,
+    IngredientID INT NOT NULL,
+    QuantityOrdered DECIMAL(10, 3) NOT NULL,
+    UnitPrice DECIMAL(10, 2) NOT NULL COMMENT 'Cost per unit of the ingredient',
+    Subtotal DECIMAL(12, 2) GENERATED ALWAYS AS (QuantityOrdered * UnitPrice) STORED,
+    FOREIGN KEY (PurchaseOrderID) REFERENCES purchase_orders(PurchaseOrderID) ON DELETE CASCADE,
+    FOREIGN KEY (IngredientID) REFERENCES ingredients(IngredientID)
+);
+
+
+-- #####################################################################
+-- # MODULE 2: AUTOMATED INVENTORY ALERTS
+-- #####################################################################
+
+--
+-- Alter Table: inventory
+-- Description: Adds a reorder level to the existing inventory table.
+--
+ALTER TABLE inventory
+ADD COLUMN ReorderLevel DECIMAL(10, 3) NOT NULL DEFAULT 5.000 COMMENT 'Threshold to trigger a low stock alert.';
+
+--
+-- Table: low_stock_alerts
+-- Description: Logs low stock events for tracking and management action.
+--
+CREATE TABLE low_stock_alerts (
+    AlertID INT PRIMARY KEY AUTO_INCREMENT,
+    IngredientID INT NOT NULL,
+    AlertTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    QuantityAtAlert DECIMAL(10, 3) NOT NULL,
+    ReorderLevelAtAlert DECIMAL(10, 3) NOT NULL,
+    Status ENUM('Pending', 'Acknowledged', 'Ordered') DEFAULT 'Pending',
+    AcknowledgedByStaffID INT,
+    FOREIGN KEY (IngredientID) REFERENCES ingredients(IngredientID) ON DELETE CASCADE,
+    FOREIGN KEY (AcknowledgedByStaffID) REFERENCES staff(StaffID)
+);
+
+
+-- #####################################################################
+-- # AUTOMATION LOGIC: TRIGGERS (FIXED)
+-- #####################################################################
+
+DELIMITER $$
+
+--
+-- Trigger: after_purchase_order_received
+-- Description: Automatically updates the main inventory when a purchase order's status is set to 'Received'.
+--
+CREATE TRIGGER after_purchase_order_received
+AFTER UPDATE ON purchase_orders
+FOR EACH ROW
+BEGIN
+    -- *** FIX: All DECLARE statements must be at the beginning of the BEGIN block. ***
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE ing_id INT;
+    DECLARE qty_received DECIMAL(10, 3);
+    DECLARE cur_po_items CURSOR FOR
+        SELECT IngredientID, QuantityOrdered
+        FROM purchase_order_details
+        WHERE PurchaseOrderID = NEW.PurchaseOrderID;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Only run the logic if the status is changed to 'Received' from another status
+    IF NEW.Status = 'Received' AND OLD.Status != 'Received' THEN
+        -- Loop through all ingredients in the PO and add them to the inventory
+        OPEN cur_po_items;
+        read_loop: LOOP
+            FETCH cur_po_items INTO ing_id, qty_received;
+            IF done THEN
+                LEAVE read_loop;
+            END IF;
+
+            -- Update the inventory for the received ingredient.
+            UPDATE inventory
+            SET QuantityInStock = QuantityInStock + qty_received,
+                LastRestockDate = CURRENT_TIMESTAMP
+            WHERE IngredientID = ing_id;
+        END LOOP;
+        CLOSE cur_po_items;
+    END IF;
+END$$
+
+--
+-- Trigger: after_po_detail_insert
+-- Description: Updates the total cost of a purchase order when a new item is added to it.
+--
+CREATE TRIGGER after_po_detail_insert
+AFTER INSERT ON purchase_order_details
+FOR EACH ROW
+BEGIN
+    UPDATE purchase_orders
+    SET TotalCost = TotalCost + NEW.Subtotal
+    WHERE PurchaseOrderID = NEW.PurchaseOrderID;
+END$$
+
+--
+-- Trigger: after_inventory_update
+-- Description: Checks the inventory level after any update. If stock is below the reorder level, it creates a new alert.
+--
+CREATE TRIGGER after_inventory_update
+AFTER UPDATE ON inventory
+FOR EACH ROW
+BEGIN
+    -- Check if the new quantity has fallen below the reorder level
+    IF NEW.QuantityInStock < NEW.ReorderLevel THEN
+        -- To avoid duplicate alerts, check if a 'Pending' alert for this ingredient already exists
+        IF NOT EXISTS (SELECT 1 FROM low_stock_alerts WHERE IngredientID = NEW.IngredientID AND Status = 'Pending') THEN
+            INSERT INTO low_stock_alerts (IngredientID, QuantityAtAlert, ReorderLevelAtAlert)
+            VALUES (NEW.IngredientID, NEW.QuantityInStock, NEW.ReorderLevel);
+        END IF;
+    END IF;
+END$$
+
+DELIMITER ;
