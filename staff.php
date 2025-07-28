@@ -21,6 +21,7 @@ require_once 'includes/header.php';
     --border-color: #e5e7eb;
     --success-color: #10b981;
     --danger-color: #ef4444;
+    --danger-hover: #d93737;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -46,10 +47,12 @@ require_once 'includes/header.php';
 .search-bar .material-icons-outlined { color: var(--text-secondary); }
 .search-bar input { border: none; background: transparent; padding: 10px; width: 100%; font-size: 0.95rem; }
 .search-bar input:focus { outline: none; }
+.filter-select { border: 1px solid var(--border-color); background-color: var(--bg-content); padding: 10px; border-radius: 8px; font-size: 0.95rem; color: var(--text-secondary); min-width: 180px; background-color: var(--bg-main); }
+.filter-select:focus { outline: none; border-color: var(--primary-color); }
 
 /* Staff Card Grid */
 .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-.staff-card { background-color: var(--bg-content); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: box-shadow 0.3s ease, transform 0.3s ease; display: flex; flex-direction: column; text-align: center; padding: 1.5rem; }
+.staff-card { background-color: var(--bg-content); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: box-shadow 0.3s ease, transform 0.3s ease; display: flex; flex-direction: column; text-align: center; padding: 1.5rem; position: relative; }
 .staff-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
 .card-avatar-wrapper { width: 120px; height: 120px; margin: 0 auto 1rem; position: relative; }
 .card-avatar { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 4px solid var(--bg-content); box-shadow: var(--shadow-md); }
@@ -59,9 +62,14 @@ require_once 'includes/header.php';
 .card-name { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin: 0; }
 .card-role { font-size: 0.95rem; color: var(--primary-color); font-weight: 500; margin-bottom: 1rem; }
 .card-contact { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
-.card-actions { display: flex; justify-content: center; gap: 0.5rem; margin-top: auto; }
-.card-actions button { background-color: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
-.card-actions button:hover { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+.card-actions { display: flex; justify-content: center; gap: 0.75rem; margin-top: auto; }
+.action-btn { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; display: grid; place-items: center; transition: background-color 0.2s ease, color 0.2s ease; }
+.action-btn .material-icons-outlined { color: var(--text-secondary); font-size: 22px; }
+.action-btn:hover .material-icons-outlined { color: var(--text-primary); }
+.action-btn.edit-btn:hover { background-color: #eef2ff; } /* Indigo-100 */
+.action-btn.edit-btn:hover .material-icons-outlined { color: var(--primary-color); }
+.action-btn.delete-btn:hover { background-color: #fee2e2; } /* Red-100 */
+.action-btn.delete-btn:hover .material-icons-outlined { color: var(--danger-color); }
 
 /* Empty State */
 .empty-state { display: none; text-align: center; padding: 4rem 2rem; background-color: var(--bg-content); border: 2px dashed var(--border-color); border-radius: 12px; color: var(--text-secondary); }
@@ -89,6 +97,29 @@ require_once 'includes/header.php';
 #imagePreview.has-image { opacity: 1; }
 #imageUploadPlaceholder { color: var(--text-secondary); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; }
 #imageUploadPlaceholder .material-icons-outlined { font-size: 48px; color: #cbd5e1; }
+
+/* Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1100; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+.modal-overlay.is-visible { opacity: 1; visibility: visible; }
+.modal-content { background-color: var(--bg-content); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow-lg); width: 90%; max-width: 450px; text-align: center; transform: scale(0.9); transition: transform 0.3s ease; }
+.modal-overlay.is-visible .modal-content { transform: scale(1); }
+.modal-content h3 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-top: 0; margin-bottom: 1rem; }
+.modal-content p { color: var(--text-secondary); margin-bottom: 2rem; }
+.modal-actions { display: flex; justify-content: center; gap: 1rem; }
+.modal-actions button { padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.95rem; border: none; transition: background-color 0.2s ease; }
+.btn-danger { background-color: var(--danger-color); color: white; }
+.btn-danger:hover { background-color: var(--danger-hover); }
+.btn-secondary { background-color: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.btn-secondary:hover { background-color: #e5e7eb; }
+
+/* Toast Notifications */
+#toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 1rem; }
+.toast { background-color: var(--bg-content); color: var(--text-primary); padding: 15px 25px; border-radius: 8px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px; border-left: 5px solid; transform: translateX(120%); transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease; opacity: 0; }
+.toast.show { transform: translateX(0); opacity: 1; }
+.toast.toast-success { border-left-color: var(--success-color); }
+.toast.toast-success .material-icons-outlined { color: var(--success-color); }
+.toast.toast-error { border-left-color: var(--danger-color); }
+.toast.toast-error .material-icons-outlined { color: var(--danger-color); }
 </style>
 
 <div class="page-container">
@@ -103,8 +134,15 @@ require_once 'includes/header.php';
     <div class="filters-bar">
         <div class="search-bar">
             <span class="material-icons-outlined">search</span>
-            <input type="text" id="searchInput" placeholder="Search by name or role...">
+            <input type="text" id="searchInput" placeholder="Search by name...">
         </div>
+        <select id="roleFilter" class="filter-select">
+            <option value="">All Roles</option>
+            <option value="Waiter">Waiter</option>
+            <option value="Chef">Chef</option>
+            <option value="Manager">Manager</option>
+            <option value="Cashier">Cashier</option>
+        </select>
     </div>
 
     <div id="itemsGrid" class="items-grid"></div>
@@ -179,6 +217,21 @@ require_once 'includes/header.php';
     </div>
 </aside>
 
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modalTitle">Confirm Action</h3>
+        <p id="modalMessage">Are you sure?</p>
+        <div class="modal-actions">
+            <button id="modalCancelBtn" class="btn-secondary">Cancel</button>
+            <button id="modalConfirmBtn" class="btn-danger">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toastContainer"></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.content-header h1').textContent = 'Staff Management';
@@ -195,10 +248,19 @@ document.addEventListener('DOMContentLoaded', function() {
             imagePreview: document.getElementById('imagePreview'),
             imageUploadPlaceholder: document.getElementById('imageUploadPlaceholder'),
             searchInput: document.getElementById('searchInput'),
+            roleFilter: document.getElementById('roleFilter'),
+            confirmationModal: document.getElementById('confirmationModal'),
+            modalConfirmBtn: document.getElementById('modalConfirmBtn'),
+            modalCancelBtn: document.getElementById('modalCancelBtn'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalMessage: document.getElementById('modalMessage'),
+            toastContainer: document.getElementById('toastContainer'),
         },
         state: {
             items: [],
             searchTerm: '',
+            roleFilter: '',
+            itemToDeleteId: null,
         },
         lazyLoader: null,
 
@@ -217,10 +279,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.state.searchTerm = e.target.value.toLowerCase();
                 this.render();
             });
+            this.elements.roleFilter.addEventListener('change', (e) => {
+                this.state.roleFilter = e.target.value;
+                this.render();
+            });
             this.elements.grid.addEventListener('click', (e) => {
                 const editBtn = e.target.closest('.edit-btn');
-                if (editBtn) this.openDrawer(editBtn.dataset.id);
+                if (editBtn) {
+                    e.preventDefault();
+                    this.openDrawer(editBtn.dataset.id);
+                }
+                
+                const deleteBtn = e.target.closest('.delete-btn');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    this.handleDeleteClick(deleteBtn.dataset.id);
+                }
             });
+            this.elements.modalConfirmBtn.addEventListener('click', () => this.confirmDelete());
+            this.elements.modalCancelBtn.addEventListener('click', () => this.closeModal());
         },
         
         async loadData() {
@@ -231,16 +308,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.render();
             } catch (error) {
                 console.error("Error loading data:", error);
-                alert('Failed to load staff data.');
+                this.showToast('Failed to load staff data.', 'error');
             }
         },
 
         render() {
             this.elements.grid.innerHTML = '';
-            const filteredItems = this.state.items.filter(item => 
-                `${item.FirstName} ${item.LastName}`.toLowerCase().includes(this.state.searchTerm) ||
-                item.Role.toLowerCase().includes(this.state.searchTerm)
-            );
+            let filteredItems = this.state.items;
+
+            if (this.state.searchTerm) {
+                const searchTerm = this.state.searchTerm;
+                filteredItems = filteredItems.filter(item => 
+                    `${item.FirstName} ${item.LastName}`.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            if (this.state.roleFilter) {
+                filteredItems = filteredItems.filter(item => item.Role === this.state.roleFilter);
+            }
 
             if (filteredItems.length === 0) {
                 this.elements.emptyState.style.display = 'block';
@@ -263,14 +348,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return `
                 <div class="staff-card">
                     <div class="card-avatar-wrapper">
-                        <img data-src="${imageUrl}" alt="${this.escapeHTML(item.FirstName)}" class="card-avatar">
+                        <img data-src="${imageUrl}" alt="${this.escapeHTML(item.FirstName)}" class="card-avatar" style="opacity:0">
                         <span class="status-badge ${isActive ? 'active' : 'inactive'}" title="${isActive ? 'Active' : 'Inactive'}"></span>
                     </div>
                     <h3 class="card-name">${this.escapeHTML(item.FirstName)} ${this.escapeHTML(item.LastName)}</h3>
                     <p class="card-role">${this.escapeHTML(item.Role)}</p>
                     <p class="card-contact">${this.escapeHTML(item.PhoneNumber)}</p>
                     <div class="card-actions">
-                        <button class="edit-btn" data-id="${item.StaffID}">Edit Details</button>
+                        <button class="action-btn edit-btn" data-id="${item.StaffID}" title="Edit">
+                            <span class="material-icons-outlined">edit</span>
+                        </button>
+                        <button class="action-btn delete-btn" data-id="${item.StaffID}" title="Delete">
+                            <span class="material-icons-outlined">delete_outline</span>
+                        </button>
                     </div>
                 </div>
             `;
@@ -320,13 +410,79 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch('ajax/ajax_handler_staff.php', { method: 'POST', body: formData });
                 const data = await response.json();
                 if (data.success) {
+                    this.showToast(data.message || 'Staff member saved successfully.', 'success');
                     this.closeDrawer();
                     await this.loadData();
                 } else { throw new Error(data.message); }
             } catch (error) {
                 console.error('Error saving item:', error);
-                alert('Error: ' + error.message);
+                this.showToast(error.message, 'error');
             }
+        },
+
+        handleDeleteClick(itemId) {
+            this.state.itemToDeleteId = itemId;
+            const item = this.state.items.find(i => i.StaffID == itemId);
+            if (item) {
+                this.elements.modalTitle.textContent = 'Confirm Deletion';
+                this.elements.modalMessage.innerHTML = `Are you sure you want to delete <strong>${this.escapeHTML(item.FirstName)} ${this.escapeHTML(item.LastName)}</strong>? This action cannot be undone.`;
+                this.elements.confirmationModal.classList.add('is-visible');
+            }
+        },
+
+        closeModal() {
+            this.elements.confirmationModal.classList.remove('is-visible');
+            this.state.itemToDeleteId = null;
+        },
+
+        async confirmDelete() {
+            if (!this.state.itemToDeleteId) return;
+
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', this.state.itemToDeleteId);
+
+            try {
+                const response = await fetch('ajax/ajax_handler_staff.php', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.success) {
+                    this.showToast(data.message || 'Staff member deleted.', 'success');
+                    await this.loadData();
+                } else { throw new Error(data.message); }
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                this.showToast(error.message, 'error');
+            } finally {
+                this.closeModal();
+            }
+        },
+
+        showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = document.createElement('span');
+            icon.className = 'material-icons-outlined';
+            icon.textContent = type === 'success' ? 'check_circle' : 'error';
+            
+            const text = document.createElement('span');
+            text.textContent = message;
+
+            toast.appendChild(icon);
+            toast.appendChild(text);
+
+            this.elements.toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 3500);
         },
 
         handleFilePreview() {

@@ -199,15 +199,45 @@ body {
     border-radius: 8px;
     text-align: center;
     cursor: pointer;
-    border: 2px solid #e0e0e0;
+    border: 1px solid #e0e0e0;
     transition: all 0.2s ease-in-out;
     font-weight: 500;
+    position: relative; /* Needed for the status badge */
+    overflow: hidden; /* Keeps badge corners rounded */
 }
-.table-card-sm i { font-size: 1.5rem; margin-bottom: 8px; display: block; }
-.table-card-sm.available { background-color: #e8f5e9; border-color: #a5d6a7; }
-.table-card-sm.occupied { background-color: #fff3e0; border-color: #ffcc80; }
-.table-card-sm:hover { transform: translateY(-3px); }
+.table-card-sm i { font-size: 1.5rem; margin-bottom: 8px; display: block; transition: color 0.2s; }
+
+/* --- NEW --- Status Badge */
+.table-card-sm .status-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 4px;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.table-card-sm.available { 
+    background-color: #e8f5e9; /* Light green */
+    border-color: #66bb6a; /* Stronger green border */
+}
+.table-card-sm.available i { color: #388e3c; }
+.table-card-sm.available .status-badge { background-color: #4caf50; }
+
+
+.table-card-sm.occupied { 
+    background-color: #fff8e1; /* Light yellow */
+    border-color: #ffb74d; /* Stronger orange border */
+}
+.table-card-sm.occupied i { color: #f57c00; }
+.table-card-sm.occupied .status-badge { background-color: #ffa726; }
+
+.table-card-sm:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
 .table-card-sm.selected {
+    border-width: 2px;
     border-color: var(--primary-color);
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);

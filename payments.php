@@ -98,7 +98,8 @@ $(document).ready(function() {
         paymentForm.hide();
         terminalHeader.text('Select an Order');
         
-        $.getJSON(`${ajaxUrl}?action=getUnpaidOrders`, function(data) {
+        // Return the promise for chaining
+        return $.getJSON(`${ajaxUrl}?action=getUnpaidOrders`, function(data) {
             queueContainer.empty();
             if (data.success && data.data.length > 0) {
                 allOrdersData = data.data; // Cache the data
@@ -107,7 +108,7 @@ $(document).ready(function() {
                         <div class="order-card" data-order-id="${order.OrderID}">
                             <div class="order-card-header">
                                 <span>Order #${order.OrderID}</span>
-                                <span style="color:var(--primary-color);">$${parseFloat(order.TotalAmount).toFixed(2)}</span>
+                                <span style="color:var(--primary-color);">${parseFloat(order.TotalAmount).toFixed(2)}</span>
                             </div>
                             <div class="order-card-body">
                                 Table ${order.TableNumber} • ${new Date(order.OrderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -123,9 +124,12 @@ $(document).ready(function() {
         });
     }
 
-    queueContainer.on('click', '.order-card', function() {
-        const card = $(this);
-        const orderId = card.data('orderId');
+    function selectOrder(orderId) {
+        const card = $(`.order-card[data-order-id='${orderId}']`);
+        if (!card.length) {
+            showToast(`Order #${orderId} is not in the unpaid queue.`, true);
+            return;
+        }
         
         // Find the full order data from our cache
         const selectedOrder = allOrdersData.find(o => o.OrderID == orderId);
@@ -149,7 +153,7 @@ $(document).ready(function() {
                 receiptContainer.append(`
                     <div class="receipt-item">
                         <span class="item-name">${item.quantity}x ${item.name}</span>
-                        <span class="item-subtotal">$${parseFloat(item.subtotal).toFixed(2)}</span>
+                        <span class="item-subtotal">${parseFloat(item.subtotal).toFixed(2)}</span>
                     </div>
                 `);
             });
@@ -158,6 +162,16 @@ $(document).ready(function() {
         }
 
         confirmBtn.prop('disabled', false).text('Confirm Payment');
+
+        // Scroll the selected card into view
+        queueContainer.animate({
+            scrollTop: card.offset().top - queueContainer.offset().top + queueContainer.scrollTop() - 20 // Adjust for better positioning
+        }, 300);
+    }
+
+    queueContainer.on('click', '.order-card', function() {
+        const orderId = $(this).data('orderId');
+        selectOrder(orderId);
     });
 
     paymentForm.on('submit', function(e) {
@@ -178,8 +192,17 @@ $(document).ready(function() {
         }, 'json');
     });
 
-    // Initial Load
-    loadUnpaidOrders();
+    // --- Initial Load ---
+    loadUnpaidOrders().done(function() {
+        // After orders are loaded, check for an order_id in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderIdFromUrl = urlParams.get('order_id');
+        if (orderIdFromUrl) {
+            selectOrder(orderIdFromUrl);
+            // Clean the URL to avoid re-selecting on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
 });
 </script>
 

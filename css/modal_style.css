@@ -78,10 +78,12 @@
 }
 
 .modal-footer {
-    padding-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 20px;
     border-top: 1px solid #e5e5e5;
     margin-top: 20px;
-    text-align: right;
 }
 
 .modal-footer button {
@@ -89,15 +91,30 @@
     border-radius: 5px;
     border: none;
     font-size: 1rem;
+    font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
-.btn-primary {
+.btn-confirm {
     background-color: var(--primary-color);
     color: white;
 }
-
-.btn-primary:hover {
+.btn-confirm:hover {
     background-color: #2980b9;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    color: white;
+}
+.btn-cancel:hover {
+    background-color: #5a6268;
+}
+
+.modal-footer button.delete-confirm-btn {
+    background-color: #e74c3c; /* Red for destructive actions */
+}
+.modal-footer button.delete-confirm-btn:hover {
+    background-color: #c0392b;
 }

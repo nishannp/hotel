@@ -83,6 +83,32 @@ switch ($action) {
         $is_active = isset($_POST['is_active']) ? 1 : 0;
         $image_path = $_POST['existing_image_path'] ?? '';
 
+        // --- Server-side validation ---
+        $errors = [];
+        if (empty($fname)) $errors[] = "First name is required.";
+        if (empty($lname)) $errors[] = "Last name is required.";
+        if (empty($role)) $errors[] = "Role is required.";
+        if (empty($phone)) {
+            $errors[] = "Phone number is required.";
+        } elseif (!preg_match('/^[0-9\s\-\+\(\)]+$/', $phone)) {
+            $errors[] = "Phone number contains invalid characters.";
+        }
+        if (empty($hire_date)) {
+            $errors[] = "Hire date is required.";
+        } else {
+            $d = DateTime::createFromFormat('Y-m-d', $hire_date);
+            if (!$d || $d->format('Y-m-d') !== $hire_date) {
+                $errors[] = "Invalid hire date format.";
+            }
+        }
+
+        if (!empty($errors)) {
+            $response['message'] = implode("\n", $errors);
+            echo json_encode($response);
+            exit;
+        }
+        // --- End validation ---
+
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
             $upload_dir = UPLOADS_DIR . 'staff/';
             if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);

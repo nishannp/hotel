@@ -73,6 +73,23 @@ echo "<script>document.querySelector('.content-header h1').textContent = 'Visual
     </div>
 </div>
 
+<!-- Generic Confirmation Modal -->
+<div id="confirmationModal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2 id="confirmationModalTitle">Confirm Action</h2>
+            <span class="close-button">×</span>
+        </div>
+        <div class="modal-body">
+            <p id="confirmationModalText"></p>
+        </div>
+        <div class="modal-footer">
+            <button id="cancelActionBtn" class="btn-cancel">Cancel</button>
+            <button id="confirmActionBtn" class="btn-confirm">Confirm</button>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification Placeholder -->
 <div id="toastNotification" class="toast-notification"></div>
 
@@ -93,6 +110,7 @@ $(document).ready(function() {
     const ticketWelcomeView = $('#ticketWelcomeView');
     const ticketOrderView = $('#ticketOrderView');
     const startOrderModal = $('#startOrderModal');
+    const confirmationModal = $('#confirmationModal');
 
     // --- Core Functions ---
 
@@ -103,6 +121,32 @@ $(document).ready(function() {
         toast.addClass('show');
         setTimeout(() => toast.removeClass('show'), 3000);
     }
+
+    // --- NEW: Confirmation Modal Logic ---
+    let confirmCallback = null;
+    function showConfirmationModal(title, text, confirmBtnClass, onConfirm) {
+        $('#confirmationModalTitle').text(title);
+        $('#confirmationModalText').text(text);
+        
+        const confirmBtn = $('#confirmActionBtn');
+        confirmBtn.removeClass('btn-confirm delete-confirm-btn').addClass(confirmBtnClass);
+        
+        confirmCallback = onConfirm; // Store the callback
+        
+        confirmationModal.show();
+    }
+
+    confirmationModal.on('click', '#confirmActionBtn', function() {
+        if (typeof confirmCallback === 'function') {
+            confirmCallback();
+        }
+        confirmationModal.hide();
+    });
+
+    confirmationModal.on('click', '#cancelActionBtn, .close-button', function() {
+        confirmationModal.hide();
+    });
+    // --- END: Confirmation Modal Logic ---
 
     function loadInitialData() {
         loadTables();
@@ -145,11 +189,16 @@ $(document).ready(function() {
             tablesGrid.empty();
             data.tables.forEach(table => {
                 const activeOrder = data.active_orders[table.TableID];
+                const status = activeOrder ? 'Occupied' : 'Available';
                 const card = $('<div></div>')
                     .addClass('table-card-sm')
                     .addClass(activeOrder ? 'occupied' : 'available')
                     .data({ tableId: table.TableID, tableNumber: table.TableNumber })
-                    .html(`<i class="fas fa-chair"></i> Table ${table.TableNumber}`);
+                    .html(`
+                        <span class="status-badge">${status}</span>
+                        <i class="fas fa-chair"></i>
+                        Table ${table.TableNumber}
+                    `);
                 if (activeOrder) {
                     card.data('orderId', activeOrder.OrderID);
                 }
@@ -177,7 +226,7 @@ $(document).ready(function() {
                     <div class="item-image" style="${imageStyle}">${imageContent}</div>
                     <div class="item-info">
                         <div class="item-name" title="${item.Name}">${item.Name}</div>
-                        <div class="item-price">$${parseFloat(item.Price).toFixed(2)}</div>
+                        <div class="item-price">${parseFloat(item.Price).toFixed(2)}</div>
                     </div>
                 </div>
             `);
@@ -201,7 +250,7 @@ $(document).ready(function() {
                 $(`.table-card-sm[data-table-id='${order.TableID}']`).addClass('selected');
 
                 ticketHeader.text(`Order #${order.OrderID} | Table ${order.TableID}`);
-                orderTotal.text(`$${parseFloat(order.TotalAmount).toFixed(2)}`);
+                orderTotal.text(`${parseFloat(order.TotalAmount).toFixed(2)}`);
                 
                 orderItemsList.empty();
                 if (items.length > 0) {
@@ -213,7 +262,7 @@ $(document).ready(function() {
                                     <span class="qty-btn" data-detail-id="${item.OrderDetailID}" data-qty="${item.Quantity}" data-change="-1">−</span>
                                     <b class="item-qty">${item.Quantity}</b>
                                     <span class="qty-btn" data-detail-id="${item.OrderDetailID}" data-qty="${item.Quantity}" data-change="1">+</span>
-                                    <span class="item-subtotal">$${parseFloat(item.Subtotal).toFixed(2)}</span>
+                                    <span class="item-subtotal">${parseFloat(item.Subtotal).toFixed(2)}</span>
                                 </div>
                             </div>`);
                     });
@@ -327,19 +376,40 @@ $(document).ready(function() {
 
     $('#ticketOrderView').on('click', '#completeOrderBtn, #cancelOrderBtn', function() {
         const isCompleting = $(this).attr('id') === 'completeOrderBtn';
-        const status = isCompleting ? 'Completed' : 'Cancelled';
-        const verb = isCompleting ? 'complete' : 'cancel';
         
-        if (confirm(`Are you sure you want to ${verb} this order?`)) {
-            $.post(actionPosAjaxUrl, { action: 'updateOrderStatus', order_id: currentOrderId, status: status }, function(data) {
-                if (data.success) {
-                    showToast(`Order marked as ${status}.`);
-                    loadTables();
-                    resetTicket();
-                } else {
-                    showToast(data.message || 'Failed to update order status.', true);
+        if (isCompleting) {
+            showConfirmationModal(
+                'Finalize & Pay',
+                'This will mark the order as "Completed" and take you to the payment screen. Proceed?',
+                'btn-confirm',
+                function() { // onConfirm
+                    $.post(actionPosAjaxUrl, { action: 'updateOrderStatus', order_id: currentOrderId, status: 'Completed' }, function(data) {
+                        if (data.success) {
+                            // Redirect to payments page with order_id
+                            window.location.href = `payments.php?order_id=${currentOrderId}`;
+                        } else {
+                            showToast(data.message || 'Failed to update order status.', true);
+                        }
+                    }, 'json').fail(() => showToast('Error communicating with server.', true));
                 }
-            }, 'json').fail(() => showToast('Error communicating with server.', true));
+            );
+        } else { // Is Cancelling
+            showConfirmationModal(
+                'Cancel Order',
+                'Are you sure you want to cancel this entire order? This action cannot be undone.',
+                'delete-confirm-btn',
+                function() { // onConfirm
+                    $.post(actionPosAjaxUrl, { action: 'updateOrderStatus', order_id: currentOrderId, status: 'Cancelled' }, function(data) {
+                        if (data.success) {
+                            showToast(`Order marked as Cancelled.`);
+                            loadTables();
+                            resetTicket();
+                        } else {
+                            showToast(data.message || 'Failed to update order status.', true);
+                        }
+                    }, 'json').fail(() => showToast('Error communicating with server.', true));
+                }
+            );
         }
     });
 
@@ -347,6 +417,7 @@ $(document).ready(function() {
     $(document).on('keydown', function(event) {
         if (event.key === "Escape") {
             startOrderModal.hide();
+            confirmationModal.hide();
         }
     });
 
@@ -354,3 +425,4 @@ $(document).ready(function() {
     loadInitialData();
 });
 </script>
+
