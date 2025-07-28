@@ -516,23 +516,6 @@ require_once 'includes/header.php';
             </div>
         </div>
 
-        <hr style="margin: 2rem 0; border-color: var(--border-color);">
-
-        <!-- Ingredients Section -->
-        <div class="form-group">
-            <h4 style="font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">Recipe Ingredients</h4>
-            
-            <div id="ingredient-selector" style="display: flex; gap: 10px; margin-bottom: 1rem;">
-                <select id="ingredientList" style="flex-grow: 1;"></select>
-                <input type="number" id="ingredientQty" placeholder="Qty" step="0.001" style="width: 100px;">
-                <button type="button" id="addIngredientBtn" class="btn-primary" style="padding: 10px 15px; white-space: nowrap;">Add</button>
-            </div>
-
-            <div id="itemIngredientsList">
-                <!-- Dynamically added ingredients will appear here -->
-            </div>
-        </div>
-
     </form>
     <div class="drawer-footer">
         <button type="submit" form="itemForm" class="btn-primary">
@@ -541,43 +524,6 @@ require_once 'includes/header.php';
         </button>
     </div>
 </aside>
-
-<style>
-/* Additional styles for ingredients section */
-#itemIngredientsList .ingredient-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: var(--bg-main);
-    padding: 8px 12px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-}
-#itemIngredientsList .ingredient-name {
-    flex-grow: 1;
-    font-weight: 500;
-}
-#itemIngredientsList .ingredient-qty {
-    color: var(--text-secondary);
-}
-#itemIngredientsList .ingredient-unit {
-    color: var(--text-secondary);
-    font-style: italic;
-    min-width: 30px;
-}
-#itemIngredientsList .remove-ingredient-btn {
-    background: none;
-    border: none;
-    color: var(--danger-color);
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-#itemIngredientsList .remove-ingredient-btn:hover {
-    opacity: 1;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -598,19 +544,12 @@ document.addEventListener('DOMContentLoaded', function() {
             imagePreview: document.getElementById('imagePreview'),
             imageUploadPlaceholder: document.getElementById('imageUploadPlaceholder'),
             searchInput: document.getElementById('searchInput'),
-            // Ingredient specific elements
-            addIngredientBtn: document.getElementById('addIngredientBtn'),
-            ingredientListSelect: document.getElementById('ingredientList'),
-            ingredientQtyInput: document.getElementById('ingredientQty'),
-            itemIngredientsList: document.getElementById('itemIngredientsList'),
         },
 
         // State
         state: {
             items: [],
             categories: [],
-            ingredients: [], // All available ingredients
-            currentRecipe: new Map(), // Map to store recipe for the item being edited {ingredientId: {qty, name, unit}}
             isDrawerOpen: false,
             filters: {
                 searchTerm: '',
@@ -637,32 +576,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.state.filters.searchTerm = e.target.value.toLowerCase();
                 this.render();
             });
-            
-            // --- Corrected Ingredient Event Handling ---
-            this.elements.addIngredientBtn.addEventListener('click', () => this.addIngredientToRecipe());
-            
-            // Listen for clicks (for delete button)
-            this.elements.itemIngredientsList.addEventListener('click', (e) => {
-                const removeBtn = e.target.closest('.remove-ingredient-btn');
-                if (removeBtn) {
-                    const ingredientId = parseInt(removeBtn.closest('.ingredient-row').dataset.ingredientId, 10);
-                    if (!isNaN(ingredientId)) {
-                        this.removeIngredientFromRecipe(ingredientId);
-                    }
-                }
-            });
-
-            // Listen for changes in quantity inputs
-            this.elements.itemIngredientsList.addEventListener('change', (e) => {
-                const qtyInput = e.target.closest('.ingredient-qty-input');
-                if (qtyInput) {
-                    const ingredientId = parseInt(qtyInput.closest('.ingredient-row').dataset.ingredientId, 10);
-                    const newQty = parseFloat(qtyInput.value);
-                    if (!isNaN(ingredientId)) {
-                        this.updateIngredientQuantity(ingredientId, newQty);
-                    }
-                }
-            });
 
             // Use event delegation for dynamically created elements
             this.elements.menuContent.addEventListener('click', (e) => {
@@ -686,21 +599,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Data Handling
         async loadData() {
             try {
-                const [itemsRes, categoriesRes, ingredientsRes] = await Promise.all([
+                const [itemsRes, categoriesRes] = await Promise.all([
                     fetch('ajax/ajax_handler_menuitems.php?action=fetchAll'),
-                    fetch('ajax/ajax_handler_categories.php?action=fetchAll'),
-                    fetch('ajax/ajax_handler_ingredients.php?action=fetchAll')
+                    fetch('ajax/ajax_handler_categories.php?action=fetchAll')
                 ]);
                 const itemsData = await itemsRes.json();
                 const categoriesData = await categoriesRes.json();
-                const ingredientsData = await ingredientsRes.json();
 
                 if (itemsData.success) this.state.items = itemsData.data;
                 if (categoriesData.success) this.state.categories = categoriesData.data;
-                if (ingredientsData.success) {
-                    this.state.ingredients = ingredientsData.data;
-                    this.populateIngredientSelect();
-                }
 
                 this.render();
                 this.populateCategoryFilter();
@@ -804,8 +711,6 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.form.reset();
             this.resetImagePreview();
             this.populateCategorySelect();
-            this.state.currentRecipe.clear();
-            this.renderRecipe();
             
             if (itemId) {
                 document.getElementById('drawerTitle').textContent = 'Edit Menu Item';
@@ -846,22 +751,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.elements.imageUploadPlaceholder.style.opacity = '0';
                 }
 
-                const response = await fetch(`ajax/ajax_handler_menuitems.php?action=getMenuItemIngredients&id=${id}`);
-                const recipeData = await response.json();
-                if (recipeData.success) {
-                    recipeData.data.forEach(ing => {
-                        const ingredientDetails = this.state.ingredients.find(i => i.IngredientID == ing.IngredientID);
-                        if (ingredientDetails) {
-                            this.state.currentRecipe.set(parseInt(ing.IngredientID, 10), {
-                                qty: parseFloat(ing.QuantityRequired),
-                                name: ingredientDetails.Name,
-                                unit: ingredientDetails.UnitOfMeasure
-                            });
-                        }
-                    });
-                    this.renderRecipe();
-                }
-
             } catch (error) {
                 console.error('Error fetching item:', error);
                 alert('Could not load item data for editing.');
@@ -873,12 +762,6 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             const formData = new FormData(this.elements.form);
             formData.append('action', 'save');
-
-            const recipe = [];
-            this.state.currentRecipe.forEach((details, id) => {
-                recipe.push({ ingredient_id: id, quantity: details.qty });
-            });
-            formData.append('ingredients', JSON.stringify(recipe));
 
             try {
                 const response = await fetch('ajax/ajax_handler_menuitems.php', { method: 'POST', body: formData });
@@ -914,74 +797,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
-        // --- Corrected Ingredient-specific methods ---
-        addIngredientToRecipe() {
-            const ingredientId = parseInt(this.elements.ingredientListSelect.value, 10);
-            const quantity = parseFloat(this.elements.ingredientQtyInput.value);
-
-            if (!ingredientId || isNaN(quantity) || quantity <= 0) {
-                alert('Please select an ingredient and enter a valid quantity.');
-                return;
-            }
-            
-            if (this.state.currentRecipe.has(ingredientId)) {
-                alert('This ingredient is already in the recipe. You can edit its quantity directly in the list.');
-                return;
-            }
-
-            const ingredient = this.state.ingredients.find(i => i.IngredientID == ingredientId);
-            if (ingredient) {
-                this.state.currentRecipe.set(ingredientId, {
-                    qty: quantity,
-                    name: ingredient.Name,
-                    unit: ingredient.UnitOfMeasure
-                });
-                this.renderRecipe();
-                this.elements.ingredientQtyInput.value = '';
-            }
-        },
-
-        removeIngredientFromRecipe(ingredientId) {
-            this.state.currentRecipe.delete(ingredientId);
-            this.renderRecipe();
-            showToast('Ingredient removed. Save the item to make it permanent.', 'info');
-        },
-
-        updateIngredientQuantity(ingredientId, newQty) {
-            if (this.state.currentRecipe.has(ingredientId)) {
-                if (isNaN(newQty) || newQty <= 0) {
-                    this.state.currentRecipe.delete(ingredientId);
-                    showToast('Invalid quantity. Ingredient has been removed.', 'error');
-                } else {
-                    this.state.currentRecipe.get(ingredientId).qty = newQty;
-                }
-                this.renderRecipe();
-            }
-        },
-
-        renderRecipe() {
-            this.elements.itemIngredientsList.innerHTML = '';
-            if (this.state.currentRecipe.size === 0) {
-                this.elements.itemIngredientsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem;">No ingredients added yet.</p>';
-                return;
-            }
-
-            this.state.currentRecipe.forEach((details, id) => {
-                const row = document.createElement('div');
-                row.className = 'ingredient-row';
-                row.dataset.ingredientId = id;
-                row.innerHTML = `
-                    <span class="ingredient-name">${this.escapeHTML(details.name)}</span>
-                    <input type="number" class="ingredient-qty-input" value="${details.qty}" step="0.001" min="0.001" style="width: 80px; text-align: right; padding: 4px 8px; border-radius: 5px; border: 1px solid var(--border-color);">
-                    <span class="ingredient-unit">${this.escapeHTML(details.unit)}</span>
-                    <button type="button" class="remove-ingredient-btn" title="Remove">
-                        <span class="material-icons-outlined">delete_forever</span>
-                    </button>
-                `;
-                this.elements.itemIngredientsList.appendChild(row);
-            });
-        },
-
         // UI Helpers
         populateCategorySelect(selectedId = null) {
             const select = document.getElementById('itemCategory');
@@ -991,17 +806,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 option.value = cat.CategoryID;
                 option.textContent = cat.CategoryName;
                 if (cat.CategoryID == selectedId) option.selected = true;
-                select.appendChild(option);
-            });
-        },
-
-        populateIngredientSelect() {
-            const select = this.elements.ingredientListSelect;
-            select.innerHTML = '<option value="">-- Select an Ingredient --</option>';
-            this.state.ingredients.forEach(ing => {
-                const option = document.createElement('option');
-                option.value = ing.IngredientID;
-                option.textContent = `${ing.Name} (${ing.UnitOfMeasure})`;
                 select.appendChild(option);
             });
         },

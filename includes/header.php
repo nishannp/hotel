@@ -104,6 +104,8 @@ function isActive($page) {
                 </a>
             </li>
             <!-- NEW/UPDATED LINKS END HERE -->
+
+            <!--
   <li>
                 <a href="ingredients.php" class="<?php echo isActive('ingredients.php'); ?>">
                     <i class="fa-solid fa-seedling"></i> Ingredients
@@ -124,6 +126,8 @@ function isActive($page) {
                     <i class="fa-solid fa-exclamation-triangle"></i> Low Stock Alerts
                 </a>
             </li>
+
+-->
              <li>
                 <a href="staff.php" class="<?php echo isActive('staff.php'); ?>">
                     <i class="fa-solid fa-user-tie"></i> Staff

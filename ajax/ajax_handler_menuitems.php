@@ -105,22 +105,7 @@ switch ($action) {
         $stmt->close();
         break;
 
-    case 'getMenuItemIngredients':
-        $id = $_GET['id'] ?? 0;
-        $stmt = $conn->prepare("SELECT IngredientID, QuantityRequired FROM menu_item_ingredients WHERE MenuItemID = ?");
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $ingredients = [];
-        while ($row = $result->fetch_assoc()) {
-            $ingredients[] = $row;
-        }
-        $response = ['success' => true, 'data' => $ingredients];
-        $stmt->close();
-        break;
-
     case 'save':
-        $conn->begin_transaction(); // <-- Start Transaction
         try {
             $id = $_POST['menu_item_id'] ?? null;
             $name = trim($_POST['item_name']);
@@ -148,13 +133,11 @@ switch ($action) {
                 }
             }
 
-            $menu_item_id = $id;
             if (empty($id)) { // ADD
                 $sql = "INSERT INTO menu_items (Name, Description, Price, CategoryID, IsAvailable, ImageUrl) VALUES (?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("ssdiis", $name, $desc, $price, $category_id, $is_available, $image_path);
                 if (!$stmt->execute()) throw new Exception($stmt->error);
-                $menu_item_id = $stmt->insert_id;
                 $message = 'Menu item added successfully.';
                 $stmt->close();
             } else { // UPDATE
@@ -165,33 +148,10 @@ switch ($action) {
                 $message = 'Menu item updated successfully.';
                 $stmt->close();
             }
-
-            // --- Handle Ingredients ---
-            // 1. Delete existing ingredients for this menu item
-            $stmt_delete = $conn->prepare("DELETE FROM menu_item_ingredients WHERE MenuItemID = ?");
-            $stmt_delete->bind_param("i", $menu_item_id);
-            if (!$stmt_delete->execute()) throw new Exception($stmt_delete->error);
-            $stmt_delete->close();
-
-            // 2. Insert new ingredients
-            if (isset($_POST['ingredients'])) {
-                $ingredients = json_decode($_POST['ingredients'], true);
-                if (is_array($ingredients) && !empty($ingredients)) {
-                    $sql_ing = "INSERT INTO menu_item_ingredients (MenuItemID, IngredientID, QuantityRequired) VALUES (?, ?, ?)";
-                    $stmt_ing = $conn->prepare($sql_ing);
-                    foreach ($ingredients as $ing) {
-                        $stmt_ing->bind_param("iid", $menu_item_id, $ing['ingredient_id'], $ing['quantity']);
-                        if (!$stmt_ing->execute()) throw new Exception($stmt_ing->error);
-                    }
-                    $stmt_ing->close();
-                }
-            }
             
-            $conn->commit(); // <-- Commit Transaction
             $response = ['success' => true, 'message' => $message];
 
         } catch (Exception $e) {
-            $conn->rollback(); // <-- Rollback on error
             $response['message'] = 'Error: ' . $e->getMessage();
         }
         break;
@@ -214,7 +174,7 @@ switch ($action) {
         }
         $stmt->close();
 
-        // Then, delete the database record. The ON DELETE CASCADE in the DB will handle menu_item_ingredients.
+        // Then, delete the database record.
         $stmt = $conn->prepare("DELETE FROM menu_items WHERE MenuItemID = ?");
         $stmt->bind_param("i", $id);
         if ($stmt->execute()) {
