@@ -401,3 +401,26 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+
+
+
+
+CREATE TABLE store_item_categories (
+    CategoryID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryName VARCHAR(100) NOT NULL UNIQUE
+);
+
+--
+-- Table 2: store_sales_log
+-- Description: A simple log to record every sale. You enter the price manually.
+--
+CREATE TABLE store_sales_log (
+    SaleID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryID INT NOT NULL,
+    ItemDescription TEXT, -- Optional: Describe what was sold (e.g., "Coke and Lays chips")
+    TotalAmount DECIMAL(10, 2) NOT NULL COMMENT 'The total price you enter manually.',
+    SaleTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CategoryID) REFERENCES store_item_categories(CategoryID)
+);

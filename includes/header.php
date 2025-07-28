@@ -93,6 +93,16 @@ function isActive($page) {
                     <i class="fa-solid fa-utensils"></i> Menu Items
                 </a>
             </li>
+            <li>
+                <a href="store_categories.php" class="<?php echo isActive('store_categories.php'); ?>">
+                    <i class="fa-solid fa-store"></i> Store Categories
+                </a>
+            </li>
+            <li>
+                <a href="store_sales.php" class="<?php echo isActive('store_sales.php'); ?>">
+                    <i class="fa-solid fa-dollar-sign"></i> Store Sales
+                </a>
+            </li>
             <!-- NEW/UPDATED LINKS END HERE -->
   <li>
                 <a href="ingredients.php" class="<?php echo isActive('ingredients.php'); ?>">
