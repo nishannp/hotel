@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
         filteredItems.forEach(item => {
             const itemEl = document.createElement('div');
             itemEl.className = 'menu-card';
-            const imageStyle = item.ImageUrl ? `style="background-image: url('uploads/menu_items/${item.ImageUrl}')"` : '';
+            const imageStyle = item.ImageUrl ? `style="background-image: url('uploads/${item.ImageUrl}')"` : '';
             const icon = item.ImageUrl ? '' : '<i class="fas fa-utensils"></i>';
             itemEl.innerHTML = `
                 <div class="menu-card-img" ${imageStyle}>${icon}</div>
