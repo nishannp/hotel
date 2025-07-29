@@ -9,6 +9,9 @@ require_once 'includes/header.php';
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<!-- Cropper.js CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+
 
 <style>
 /* 
@@ -83,6 +86,22 @@ require_once 'includes/header.php';
     transform: scale(0.98);
 }
 .btn-primary .material-icons-outlined { font-size: 20px; }
+
+.btn-secondary {
+    background-color: #e5e7eb;
+    color: var(--text-primary);
+    border: none;
+    padding: 12px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease;
+}
+.btn-secondary:hover {
+    background-color: #d1d5db;
+}
+
 
 /* Filter Bar */
 .menu-filters {
@@ -416,13 +435,14 @@ require_once 'includes/header.php';
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
     position: relative;
     overflow: hidden;
     background-color: #fcfcfd;
 }
-#imageUploadArea:hover {
+#imageUploadArea:hover, #imageUploadArea.is-dragging {
     border-color: var(--primary-color);
+    background-color: #f7f8fc;
 }
 #imagePreview {
     width: 100%; height: 100%;
@@ -434,9 +454,54 @@ require_once 'includes/header.php';
 #imagePreview.has-image { opacity: 1; }
 #imageUploadPlaceholder {
     color: var(--text-secondary); text-align: center;
+    transition: opacity 0.3s ease;
 }
 #imageUploadPlaceholder .material-icons-outlined {
     font-size: 48px; color: #cbd5e1;
+}
+#imageUploadPlaceholder a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+#imageUploadPlaceholder a:hover {
+    text-decoration: underline;
+}
+
+/* Cropper.js Modal Styling */
+#cropperModal {
+    display: none; 
+    position: fixed; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.7); 
+    z-index: 1060; 
+    align-items: center; 
+    justify-content: center;
+}
+.cropper-container {
+    background: #fff;
+}
+.cropper-modal-content {
+    background: white; 
+    padding: 2rem; 
+    border-radius: 12px; 
+    width: 90%; 
+    max-width: 600px;
+    box-shadow: var(--shadow-lg);
+}
+.cropper-image-container {
+    max-height: 60vh; 
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+#imageToCrop {
+    max-width: 100%;
+}
+.cropper-modal-footer {
+    display: flex; 
+    justify-content: flex-end; 
+    gap: 1rem;
 }
 </style>
 
@@ -479,14 +544,16 @@ require_once 'includes/header.php';
     <form id="itemForm" class="drawer-body" enctype="multipart/form-data">
         <input type="hidden" id="menuItemId" name="menu_item_id">
         <input type="hidden" id="existingImagePath" name="existing_image_path">
+        <input type="hidden" id="croppedImageData" name="cropped_image_data">
         
         <div class="form-group">
-            <div id="imageUploadArea" onclick="document.getElementById('itemImage').click();">
+            <label>Item Image</label>
+            <div id="imageUploadArea">
                 <img id="imagePreview" src="#">
                 <div id="imageUploadPlaceholder">
                     <span class="material-icons-outlined">cloud_upload</span>
-                    <p style="font-weight: 500; margin-top: 0.5rem;">Click to upload image</p>
-                    <p style="font-size: 0.8rem;">PNG, JPG, WEBP up to 5MB</p>
+                    <p style="font-weight: 500; margin-top: 0.5rem;">Drag & Drop, Paste, or <a href="#">Click to upload</a></p>
+                    <p style="font-size: 0.8rem;">Recommended: Square image</p>
                 </div>
             </div>
             <input type="file" id="itemImage" name="item_image" accept="image/*" style="display:none;">
@@ -525,6 +592,24 @@ require_once 'includes/header.php';
     </div>
 </aside>
 
+<!-- Cropper Modal -->
+<div id="cropperModal">
+    <div class="cropper-modal-content">
+        <h3 id="drawerTitle" style="margin-top:0; margin-bottom: 1.5rem;">Crop Image</h3>
+        <div class="cropper-image-container">
+            <img id="imageToCrop" src="">
+        </div>
+        <div class="cropper-modal-footer">
+            <button type="button" id="cancelCropBtn" class="btn-secondary">Cancel</button>
+            <button type="button" id="cropImageBtn" class="btn-primary">Crop & Save</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Cropper.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Set header title dynamically
@@ -544,6 +629,13 @@ document.addEventListener('DOMContentLoaded', function() {
             imagePreview: document.getElementById('imagePreview'),
             imageUploadPlaceholder: document.getElementById('imageUploadPlaceholder'),
             searchInput: document.getElementById('searchInput'),
+            imageUploadArea: document.getElementById('imageUploadArea'),
+            croppedImageData: document.getElementById('croppedImageData'),
+            // Cropper Modal
+            cropperModal: document.getElementById('cropperModal'),
+            imageToCrop: document.getElementById('imageToCrop'),
+            cropImageBtn: document.getElementById('cropImageBtn'),
+            cancelCropBtn: document.getElementById('cancelCropBtn'),
         },
 
         // State
@@ -555,6 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 searchTerm: '',
                 categoryId: 'all',
             },
+            cropper: null,
         },
         
         lazyLoader: null,
@@ -571,11 +664,53 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.addItemBtn.addEventListener('click', () => this.openDrawer());
             this.elements.closeDrawerBtn.addEventListener('click', () => this.closeDrawer());
             this.elements.form.addEventListener('submit', (e) => this.handleFormSubmit(e));
-            this.elements.imageInput.addEventListener('change', () => this.handleFilePreview());
             this.elements.searchInput.addEventListener('input', (e) => {
                 this.state.filters.searchTerm = e.target.value.toLowerCase();
                 this.render();
             });
+
+            // Image Upload Events
+            this.elements.imageInput.addEventListener('change', (e) => this.handleFileSelect(e));
+            const uploadArea = this.elements.imageUploadArea;
+            
+            uploadArea.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.elements.imageInput.click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.add('is-dragging');
+            });
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.remove('is-dragging');
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.classList.remove('is-dragging');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) this.handleFile(files[0]);
+            });
+            document.addEventListener('paste', (e) => {
+                if (!this.state.isDrawerOpen) return;
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (const item of items) {
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        this.handleFile(file);
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            });
+
+            // Cropper Buttons
+            this.elements.cropImageBtn.addEventListener('click', () => this.handleCrop());
+            this.elements.cancelCropBtn.addEventListener('click', () => this.closeCropper());
 
             // Use event delegation for dynamically created elements
             this.elements.menuContent.addEventListener('click', (e) => {
@@ -762,6 +897,7 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             const formData = new FormData(this.elements.form);
             formData.append('action', 'save');
+            formData.delete('item_image'); // No longer needed
 
             try {
                 const response = await fetch('ajax/ajax_handler_menuitems.php', { method: 'POST', body: formData });
@@ -797,6 +933,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
+        // Image & Cropper Handling
+        handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) this.handleFile(file);
+        },
+
+        handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast('Please select a valid image file.', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.elements.imageToCrop.src = e.target.result;
+                this.elements.cropperModal.style.display = 'flex';
+                if (this.state.cropper) this.state.cropper.destroy();
+                this.state.cropper = new Cropper(this.elements.imageToCrop, {
+                    aspectRatio: 1,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    background: false,
+                    autoCropArea: 0.8,
+                });
+            };
+            reader.readAsDataURL(file);
+        },
+
+        closeCropper() {
+            if (this.state.cropper) {
+                this.state.cropper.destroy();
+                this.state.cropper = null;
+            }
+            this.elements.cropperModal.style.display = 'none';
+            this.elements.imageInput.value = '';
+        },
+
+        handleCrop() {
+            if (!this.state.cropper) return;
+            const canvas = this.state.cropper.getCroppedCanvas({
+                width: 500, height: 500,
+                imageSmoothingQuality: 'high',
+            });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            this.elements.imagePreview.src = dataUrl;
+            this.elements.imagePreview.classList.add('has-image');
+            this.elements.imageUploadPlaceholder.style.opacity = '0';
+            this.elements.croppedImageData.value = dataUrl;
+            this.closeCropper();
+        },
+
         // UI Helpers
         populateCategorySelect(selectedId = null) {
             const select = document.getElementById('itemCategory');
@@ -818,24 +1004,12 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.categoryFilters.innerHTML = filterHtml;
         },
         
-        handleFilePreview() {
-            const file = this.elements.imageInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.elements.imagePreview.src = e.target.result;
-                    this.elements.imagePreview.classList.add('has-image');
-                    this.elements.imageUploadPlaceholder.style.opacity = '0';
-                }
-                reader.readAsDataURL(file);
-            }
-        },
-
         resetImagePreview() {
             this.elements.imagePreview.src = '#';
             this.elements.imagePreview.classList.remove('has-image');
             this.elements.imageUploadPlaceholder.style.opacity = '1';
             this.elements.imageInput.value = '';
+            this.elements.croppedImageData.value = '';
         },
         
         initLazyLoader() {
@@ -844,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (entry.isIntersecting) {
                         const img = entry.target;
                         img.src = img.dataset.src;
-                        img.classList.add('loaded');
+                        img.onload = () => img.classList.add('loaded');
                         observer.unobserve(img);
                     }
                 });

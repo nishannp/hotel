@@ -114,22 +114,35 @@ switch ($action) {
             $category_id = $_POST['item_category'];
             $is_available = isset($_POST['is_available']) ? 1 : 0;
             $image_path = $_POST['existing_image_path'] ?? '';
+            $cropped_image_data = $_POST['cropped_image_data'] ?? '';
 
-            if (isset($_FILES['item_image']) && $_FILES['item_image']['error'] == 0) {
+            // Handle new image upload (from cropper)
+            if (!empty($cropped_image_data)) {
                 $upload_dir = UPLOADS_DIR . 'menu_items/';
-                if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
-
-                if (!empty($id) && !empty($image_path)) {
-                    $old_image_full_path = UPLOADS_DIR . $image_path;
-                    if (file_exists($old_image_full_path)) unlink($old_image_full_path);
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
                 }
 
-                $file_name = uniqid() . '-' . basename($_FILES["item_image"]["name"]);
-                $target_file = $upload_dir . $file_name;
-                $image_path = 'menu_items/' . $file_name;
+                // Delete the old image if it exists
+                if (!empty($image_path)) {
+                    $old_image_full_path = UPLOADS_DIR . $image_path;
+                    if (file_exists($old_image_full_path)) {
+                        unlink($old_image_full_path);
+                    }
+                }
 
-                if (!cropAndResizeImage($_FILES['item_image']['tmp_name'], $target_file)) {
-                    throw new Exception('Failed to upload and resize image.');
+                // Decode and save the new base64 image
+                list($type, $data) = explode(';', $cropped_image_data);
+                list(, $data)      = explode(',', $data);
+                $decoded_data = base64_decode($data);
+                
+                $file_name = uniqid('menu_') . '.jpg';
+                $target_file = $upload_dir . $file_name;
+
+                if (file_put_contents($target_file, $decoded_data)) {
+                    $image_path = 'menu_items/' . $file_name;
+                } else {
+                    throw new Exception('Failed to save the cropped image.');
                 }
             }
 
@@ -137,17 +150,18 @@ switch ($action) {
                 $sql = "INSERT INTO menu_items (Name, Description, Price, CategoryID, IsAvailable, ImageUrl) VALUES (?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("ssdiis", $name, $desc, $price, $category_id, $is_available, $image_path);
-                if (!$stmt->execute()) throw new Exception($stmt->error);
                 $message = 'Menu item added successfully.';
-                $stmt->close();
             } else { // UPDATE
                 $sql = "UPDATE menu_items SET Name = ?, Description = ?, Price = ?, CategoryID = ?, IsAvailable = ?, ImageUrl = ? WHERE MenuItemID = ?";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("ssdiisi", $name, $desc, $price, $category_id, $is_available, $image_path, $id);
-                if (!$stmt->execute()) throw new Exception($stmt->error);
                 $message = 'Menu item updated successfully.';
-                $stmt->close();
             }
+            
+            if (!$stmt->execute()) {
+                throw new Exception($stmt->error);
+            }
+            $stmt->close();
             
             $response = ['success' => true, 'message' => $message];
 
