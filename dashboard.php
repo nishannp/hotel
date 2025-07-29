@@ -140,9 +140,9 @@ require_once 'includes/header.php';
                     <div class="kpi-comparison">Completed Today</div>
                 </div>
                 <div class="db-card kpi-card">
-                    <div class="kpi-label"><span class="material-icons-outlined">person_add</span> New Customers</div>
-                    <div id="kpi-new-customers" class="kpi-value">0</div>
-                    <div class="kpi-comparison">Today</div>
+                    <div class="kpi-label"><span class="material-icons-outlined">timer</span> Avg. Customer Time</div>
+                    <div id="kpi-avg-cust-time" class="kpi-value">0 min</div>
+                    <div class="kpi-comparison">Today's Completed Orders</div>
                 </div>
                 <div class="db-card kpi-card">
                     <div class="kpi-label"><span class="material-icons-outlined">notifications_active</span> Pending Alerts</div>
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
             kpiStoreRevenue: document.getElementById('kpi-store-revenue'),
             kpiHotelRevenue: document.getElementById('kpi-hotel-revenue'),
             kpiOrders: document.getElementById('kpi-orders'),
-            kpiNewCustomers: document.getElementById('kpi-new-customers'),
+            kpiAvgCustTime: document.getElementById('kpi-avg-cust-time'),
             kpiAlerts: document.getElementById('kpi-alerts'),
             kpiTablesSummary: document.getElementById('kpi-tables-summary'),
             // Lists
@@ -409,7 +409,8 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.kpiStoreRevenue.textContent = `Rs ${parseFloat(kpi.store_revenue_today || 0).toFixed(2)}`;
             this.elements.kpiHotelRevenue.textContent = `Rs ${parseFloat(kpi.hotel_revenue_today || 0).toFixed(2)}`;
             this.elements.kpiOrders.textContent = kpi.completed_orders_today || 0;
-            this.elements.kpiNewCustomers.textContent = kpi.new_customers_today || 0;
+            const avgTime = Math.round(kpi.avg_customer_time_today || 0);
+            this.elements.kpiAvgCustTime.textContent = `${avgTime} min`;
             this.elements.kpiAlerts.textContent = kpi.low_stock_alerts || 0;
             
             const diff = kpi.total_revenue_today - kpi.total_revenue_yesterday;

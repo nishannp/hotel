@@ -50,9 +50,19 @@ try {
     // Avg. Order Value
     $data['kpi']['aov_today'] = ($data['kpi']['completed_orders_today'] > 0) ? ($data['kpi']['hotel_revenue_today'] / $data['kpi']['completed_orders_today']) : 0;
 
-    // New Customers
-    $new_cust_res = $conn->query("SELECT COUNT(CustomerID) as count FROM customers WHERE CreatedAt BETWEEN '$today_start' AND '$today_end'");
-    $data['kpi']['new_customers_today'] = $new_cust_res->fetch_assoc()['count'] ?? 0;
+    // Avg. Customer Time (Today)
+    $avg_time_res = $conn->query("
+        SELECT AVG(duration) as avg_duration
+        FROM (
+            SELECT TIMESTAMPDIFF(MINUTE, o.OrderTime, MAX(p.PaymentTime)) as duration
+            FROM orders o
+            JOIN payments p ON o.OrderID = p.OrderID
+            WHERE o.OrderStatus = 'Completed'
+            AND o.OrderTime BETWEEN '$today_start' AND '$today_end'
+            GROUP BY o.OrderID
+        ) as order_durations
+    ");
+    $data['kpi']['avg_customer_time_today'] = $avg_time_res->fetch_assoc()['avg_duration'] ?? 0;
     
     // Low Stock Alerts
     $low_stock_alerts_res = $conn->query("SELECT COUNT(AlertID) as count FROM low_stock_alerts WHERE Status = 'Pending'");
