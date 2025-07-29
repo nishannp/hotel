@@ -1,139 +1,85 @@
-/* css/admin_style.css (Modern Light Theme) */
+/* css/admin_style.css */
 
 /* --- Google Font & Basic Reset --- */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --primary-color: #8b5cf6; /* A vibrant purple for accents */
-    --primary-hover-color: #f3f4f6;  /* Very light grey for hover */
-    --text-dark-color: #111827;     /* The main dark text color */
-    --text-on-primary: #ffffff;     /* White text for on top of the primary color */
-    --text-muted-color: #6b7280;    /* A muted grey for secondary text */
-    --sidebar-bg: #ffffff;          /* Clean white sidebar */
-    --page-bg: #f9fafb;             /* A very light grey for the main content area */
-    --border-color: #e5e7eb;        /* A light, subtle border color */
+    --primary-color: #3498db;
+    --dark-color: #2c3e50;
+    --light-color: #ecf0f1;
+    --grey-color: #bdc3c7;
+    --background-color: #f4f6f9;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     font-family: 'Poppins', sans-serif;
-    background-color: var(--page-bg);
-    color: var(--text-dark-color); /* Default text is dark */
+    background-color: var(--background-color);
+    color: #333;
 }
 
-/* --- Modern Light Sidebar --- */
+/* --- Sidebar Navigation --- */
 .sidebar {
     position: fixed;
     left: 0;
     top: 0;
-    width: 260px;
+    width: 250px;
     height: 100%;
-    background: var(--sidebar-bg);
+    background: var(--dark-color);
+    color: var(--light-color);
     display: flex;
     flex-direction: column;
     transition: all 0.3s ease;
     z-index: 100;
-    border-right: 1px solid var(--border-color);
 }
-
 .sidebar-header {
-    padding: 24px 28px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #3e5165;
 }
-
-.sidebar-header h2 {
-    font-weight: 600;
-    font-size: 1.6rem;
-    color: var(--text-dark-color); /* Header text is dark */
-}
-
+.sidebar-header h2 { font-weight: 600; font-size: 1.5rem; }
 .sidebar-nav {
     flex-grow: 1;
     list-style: none;
-    padding: 16px 0;
+    padding: 20px 0;
 }
-
-.sidebar-nav li {
-    margin: 0 16px;
-}
-
 .sidebar-nav li a {
     display: flex;
     align-items: center;
-    padding: 14px 18px;
-    color: var(--text-muted-color); /* Muted color for inactive links */
+    padding: 15px 25px;
+    color: var(--light-color);
     text-decoration: none;
     font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-    border-radius: 8px;
-    margin-bottom: 4px;
+    transition: background 0.3s ease, padding-left 0.3s ease;
 }
-
-.sidebar-nav li a:hover {
-    background: var(--primary-hover-color);
-    color: var(--text-dark-color); /* Darken text on hover */
-}
-
-/* --- Active Link Style --- */
-.sidebar-nav li a.active {
+.sidebar-nav li a:hover, .sidebar-nav li a.active {
     background: var(--primary-color);
-    color: var(--text-on-primary);
-    font-weight: 600;
-    box-shadow: 0 4px 14px -4px var(--primary-color); /* Add a subtle glow */
+    padding-left: 35px;
+    border-left: 5px solid var(--light-color);
 }
-
 .sidebar-nav li a i {
-    font-size: 1.1rem;
-    margin-right: 18px;
-    width: 22px;
+    font-size: 1.2rem;
+    margin-right: 15px;
+    width: 20px;
     text-align: center;
-    transition: all 0.2s ease-in-out;
 }
-
-/* Keep icon color consistent with text on hover/active */
-.sidebar-nav li a:hover i,
-.sidebar-nav li a.active i {
-    color: inherit;
-}
-
-.logout-link {
-    margin-top: auto;
-    padding-bottom: 16px;
-}
+.logout-link { margin-top: auto; }
 
 /* --- Main Content Area --- */
 .main-content {
-    margin-left: 260px;
-    padding: 30px;
+    margin-left: 250px;
+    padding: 25px;
     transition: margin-left 0.3s ease;
 }
-
 .content-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 25px;
 }
-
-.content-header h1 {
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: var(--text-dark-color);
-}
-
-.user-info {
-    font-size: 1rem;
-    color: var(--text-muted-color);
-}
+.content-header h1 { font-size: 2rem; font-weight: 600; }
+.user-info { font-size: 1rem; color: #555; }
 
 /* --- General Components --- */
 .card {
