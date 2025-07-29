@@ -1,4 +1,8 @@
 <?php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // ajax/ajax_handler_staff.php
 require_once '../config.php';
 
@@ -46,7 +50,15 @@ function cropAndResizeImage($source_path, $destination_path, $size = 300) {
 
 switch ($action) {
     case 'fetchAll':
-        $sql = "SELECT StaffID, FirstName, LastName, Role, PhoneNumber, HireDate, ImageUrl, IsActive FROM staff ORDER BY FirstName, LastName";
+        // Fetches all staff and calculates their current balance from the ledger
+        $sql = "SELECT 
+                    s.StaffID, s.FirstName, s.LastName, s.Role, s.PhoneNumber, s.HireDate, s.ImageUrl, s.IsActive, s.MonthlySalary,
+                    COALESCE(SUM(sl.Credit), 0) - COALESCE(SUM(sl.Debit), 0) as Balance
+                FROM staff s
+                LEFT JOIN staff_ledger sl ON s.StaffID = sl.StaffID
+                GROUP BY s.StaffID
+                ORDER BY s.FirstName, s.LastName";
+        
         $result = $conn->query($sql);
         $staff = [];
         while ($row = $result->fetch_assoc()) {
@@ -78,6 +90,7 @@ switch ($action) {
         $fname = trim($_POST['first_name']);
         $lname = trim($_POST['last_name']);
         $role = $_POST['role'];
+        $salary = $_POST['monthly_salary'] ?? 0.00;
         $phone = trim($_POST['phone_number']);
         $hire_date = $_POST['hire_date'];
         $is_active = isset($_POST['is_active']) ? 1 : 0;
@@ -88,6 +101,7 @@ switch ($action) {
         if (empty($fname)) $errors[] = "First name is required.";
         if (empty($lname)) $errors[] = "Last name is required.";
         if (empty($role)) $errors[] = "Role is required.";
+        if (!is_numeric($salary) || $salary < 0) $errors[] = "Invalid salary amount.";
         if (empty($phone)) {
             $errors[] = "Phone number is required.";
         } elseif (!preg_match('/^[0-9\s\-\+\(\)]+$/', $phone)) {
@@ -130,14 +144,14 @@ switch ($action) {
         }
 
         if (empty($id)) {
-            $sql = "INSERT INTO staff (FirstName, LastName, Role, PhoneNumber, HireDate, ImageUrl, IsActive) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO staff (FirstName, LastName, Role, MonthlySalary, PhoneNumber, HireDate, ImageUrl, IsActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssssssi", $fname, $lname, $role, $phone, $hire_date, $image_path, $is_active);
+            $stmt->bind_param("sssdsssi", $fname, $lname, $role, $salary, $phone, $hire_date, $image_path, $is_active);
             $message = 'Staff member added successfully.';
         } else {
-            $sql = "UPDATE staff SET FirstName = ?, LastName = ?, Role = ?, PhoneNumber = ?, HireDate = ?, ImageUrl = ?, IsActive = ? WHERE StaffID = ?";
+            $sql = "UPDATE staff SET FirstName = ?, LastName = ?, Role = ?, MonthlySalary = ?, PhoneNumber = ?, HireDate = ?, ImageUrl = ?, IsActive = ? WHERE StaffID = ?";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssssssii", $fname, $lname, $role, $phone, $hire_date, $image_path, $is_active, $id);
+            $stmt->bind_param("sssdsssii", $fname, $lname, $role, $salary, $phone, $hire_date, $image_path, $is_active, $id);
             $message = 'Staff member updated successfully.';
         }
         
@@ -176,6 +190,60 @@ switch ($action) {
             } else {
                  $response['message'] = 'Error: ' . $stmt->error;
             }
+        }
+        $stmt->close();
+        break;
+
+    case 'fetchLedger':
+        $staff_id = $_GET['staff_id'] ?? 0;
+        $stmt = $conn->prepare("SELECT * FROM staff_ledger WHERE StaffID = ? ORDER BY TransactionDate DESC, CreatedAt DESC");
+        $stmt->bind_param("i", $staff_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $ledger = $result->fetch_all(MYSQLI_ASSOC);
+        $response = ['success' => true, 'data' => $ledger];
+        $stmt->close();
+        break;
+
+    case 'addLedgerTransaction':
+        $staff_id = $_POST['staff_id'] ?? 0;
+        $date = $_POST['date'];
+        $desc = trim($_POST['description']);
+        $type = $_POST['type']; // 'Credit' or 'Debit'
+        $amount = $_POST['amount'] ?? 0;
+
+        if (empty($staff_id) || empty($date) || empty($desc) || empty($type) || !is_numeric($amount) || $amount <= 0) {
+            $response['message'] = 'Invalid transaction data provided.';
+            break;
+        }
+
+        $credit = ($type === 'Credit') ? $amount : 0;
+        $debit = ($type === 'Debit') ? $amount : 0;
+
+        $sql = "INSERT INTO staff_ledger (StaffID, TransactionDate, Description, Credit, Debit) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("issdd", $staff_id, $date, $desc, $credit, $debit);
+        
+        if ($stmt->execute()) {
+            $response = ['success' => true, 'message' => 'Transaction added successfully.'];
+        } else {
+            $response['message'] = 'Error: ' . $stmt->error;
+        }
+        $stmt->close();
+        break;
+
+    case 'deleteLedgerTransaction':
+        $ledger_id = $_POST['ledger_id'] ?? 0;
+        if (empty($ledger_id)) {
+            $response['message'] = 'Invalid Ledger ID.';
+            break;
+        }
+        $stmt = $conn->prepare("DELETE FROM staff_ledger WHERE LedgerID = ?");
+        $stmt->bind_param("i", $ledger_id);
+        if ($stmt->execute()) {
+            $response = ['success' => true, 'message' => 'Transaction deleted successfully.'];
+        } else {
+            $response['message'] = 'Error: ' . $stmt->error;
         }
         $stmt->close();
         break;

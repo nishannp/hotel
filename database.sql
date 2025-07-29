@@ -188,3 +188,24 @@ CREATE TABLE store_sales_log (
     SaleTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (CategoryID) REFERENCES store_item_categories(CategoryID)
 );
+
+
+
+
+
+ALTER TABLE `staff`
+     ADD `MonthlySalary` DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER `Role`;
+    
+     -- Create a new table for staff financial transactions (ledger)
+     CREATE TABLE `staff_ledger` (
+       `LedgerID` INT PRIMARY KEY AUTO_INCREMENT,
+       `StaffID` INT NOT NULL,
+    `TransactionDate` DATE NOT NULL,
+      `Description` VARCHAR(255) NOT NULL,
+  `Credit` DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'Money owed to staff (e.g., monthly 
+      salary)',
+     `Debit` DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT 'Money paid to staff (e.g., payment, 
+      advance)',
+      `CreatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (`StaffID`) REFERENCES `staff`(`StaffID`) ON DELETE CASCADE
+ );

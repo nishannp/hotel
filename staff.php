@@ -51,7 +51,7 @@ require_once 'includes/header.php';
 .filter-select:focus { outline: none; border-color: var(--primary-color); }
 
 /* Staff Card Grid */
-.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
 .staff-card { background-color: var(--bg-content); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: box-shadow 0.3s ease, transform 0.3s ease; display: flex; flex-direction: column; text-align: center; padding: 1.5rem; position: relative; }
 .staff-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
 .card-avatar-wrapper { width: 120px; height: 120px; margin: 0 auto 1rem; position: relative; }
@@ -60,16 +60,21 @@ require_once 'includes/header.php';
 .status-badge.active { background-color: var(--success-color); }
 .status-badge.inactive { background-color: #9ca3af; }
 .card-name { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin: 0; }
-.card-role { font-size: 0.95rem; color: var(--primary-color); font-weight: 500; margin-bottom: 1rem; }
-.card-contact { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
-.card-actions { display: flex; justify-content: center; gap: 0.75rem; margin-top: auto; }
-.action-btn { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; display: grid; place-items: center; transition: background-color 0.2s ease, color 0.2s ease; }
-.action-btn .material-icons-outlined { color: var(--text-secondary); font-size: 22px; }
+.card-role { font-size: 0.95rem; color: var(--primary-color); font-weight: 500; margin-bottom: 0.5rem; }
+.card-salary-info { display: flex; justify-content: space-around; background-color: #f9fafb; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; }
+.salary-box { text-align: center; }
+.salary-box .label { font-size: 0.8rem; color: var(--text-secondary); }
+.salary-box .amount { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+.salary-box .amount.positive { color: var(--success-color); }
+.salary-box .amount.negative { color: var(--danger-color); }
+
+.card-actions { display: flex; justify-content: center; gap: 0.5rem; margin-top: auto; }
+.action-btn { background: #f3f4f6; border: none; cursor: pointer; padding: 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px; transition: background-color 0.2s ease, color 0.2s ease; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+.action-btn .material-icons-outlined { color: var(--text-secondary); font-size: 18px; transition: color 0.2s ease; }
+.action-btn:hover { background-color: #e5e7eb; color: var(--text-primary); }
 .action-btn:hover .material-icons-outlined { color: var(--text-primary); }
-.action-btn.edit-btn:hover { background-color: #eef2ff; } /* Indigo-100 */
-.action-btn.edit-btn:hover .material-icons-outlined { color: var(--primary-color); }
-.action-btn.delete-btn:hover { background-color: #fee2e2; } /* Red-100 */
-.action-btn.delete-btn:hover .material-icons-outlined { color: var(--danger-color); }
+.action-btn.salary-btn:hover { background-color: #e0e7ff; color: var(--primary-color); }
+.action-btn.salary-btn:hover .material-icons-outlined { color: var(--primary-color); }
 
 /* Empty State */
 .empty-state { display: none; text-align: center; padding: 4rem 2rem; background-color: var(--bg-content); border: 2px dashed var(--border-color); border-radius: 12px; color: var(--text-secondary); }
@@ -85,9 +90,35 @@ require_once 'includes/header.php';
 .close-drawer-btn:hover { background: #e5e7eb; color: var(--text-primary); transform: rotate(90deg); }
 .drawer-body { padding: 2rem; overflow-y: auto; flex-grow: 1; }
 .drawer-body .form-group { margin-bottom: 1.5rem; }
-.drawer-body label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.9rem; }
-.drawer-body input, .drawer-body select { width: 100%; padding: 12px 14px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-main); transition: all 0.2s ease; }
-.drawer-body input:focus, .drawer-body select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); }
+.drawer-body label, #transactionForm label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.9rem; }
+.drawer-body input, .drawer-body select,
+#transactionForm input, #transactionForm select { 
+    width: 100%; 
+    padding: 12px 14px; 
+    border: 1px solid var(--border-color); 
+    border-radius: 8px; 
+    background-color: var(--bg-main); 
+    transition: all 0.2s ease; 
+    font-family: var(--font-family);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+.drawer-body input:focus, .drawer-body select:focus,
+#transactionForm input:focus, #transactionForm select:focus { 
+    outline: none; 
+    border-color: var(--primary-color); 
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); 
+}
+
+/* Custom styling for date input to make it feel more integrated */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
 .checkbox-group { display: flex; align-items: center; gap: 10px; background-color: var(--bg-main); padding: 12px; border-radius: 8px; }
 .drawer-footer { padding: 1.5rem 2rem; border-top: 1px solid var(--border-color); flex-shrink: 0; background-color: var(--bg-content); }
 .drawer-footer button { width: 100%; padding: 14px 22px; }
@@ -112,19 +143,40 @@ require_once 'includes/header.php';
 .btn-secondary { background-color: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); }
 .btn-secondary:hover { background-color: #e5e7eb; }
 
+/* Ledger Modal */
+#ledgerModal .modal-content { max-width: 700px; text-align: left; }
+#ledgerModal .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; }
+#ledgerModal .modal-title { font-size: 1.5rem; font-weight: 600; }
+#ledgerModal .modal-close-btn { background: #f3f4f6; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text-secondary); transition: all 0.2s ease; }
+#ledgerModal .modal-close-btn:hover { background: #e5e7eb; color: var(--text-primary); transform: rotate(90deg); }
+#ledgerModal .modal-body { max-height: 70vh; overflow-y: auto; }
+.ledger-summary { display: flex; justify-content: space-between; background-color: var(--bg-main); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+.summary-item h4 { margin: 0 0 0.25rem 0; font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
+.summary-item p { margin: 0; font-size: 1.5rem; font-weight: 600; }
+#transactionForm { border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+#transactionForm .form-group { margin: 0; }
+#transactionForm .full-width { grid-column: 1 / -1; }
+.ledger-table { width: 100%; border-collapse: collapse; }
+.ledger-table th, .ledger-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+.ledger-table th { font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); background-color: #f9fafb; }
+.ledger-table .credit-col { color: var(--success-color); }
+.ledger-table .debit-col { color: var(--danger-color); }
+.ledger-table .delete-txn-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; }
+.ledger-table .delete-txn-btn:hover { color: var(--danger-color); }
+
 /* Toast Notifications */
 #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 1rem; }
-.toast { background-color: var(--bg-content); color: var(--text-primary); padding: 15px 25px; border-radius: 8px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px; border-left: 5px solid; transform: translateX(120%); transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease; opacity: 0; }
+.toast { color: white; padding: 15px 25px; border-radius: 8px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px; transform: translateX(120%); transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.5s ease; opacity: 0; }
 .toast.show { transform: translateX(0); opacity: 1; }
-.toast.toast-success { border-left-color: var(--success-color); }
-.toast.toast-success .material-icons-outlined { color: var(--success-color); }
-.toast.toast-error { border-left-color: var(--danger-color); }
-.toast.toast-error .material-icons-outlined { color: var(--danger-color); }
+.toast.toast-success { background-color: var(--success-color); }
+.toast.toast-success .material-icons-outlined { color: white; }
+.toast.toast-error { background-color: var(--danger-color); }
+.toast.toast-error .material-icons-outlined { color: white; }
 </style>
 
 <div class="page-container">
     <div class="page-header">
-        <h2 id="main-title">Staff</h2>
+        <h2 id="main-title">Staff Management</h2>
         <button id="addItemBtn" class="btn-primary">
             <span class="material-icons-outlined">person_add</span>
             Add Staff
@@ -194,6 +246,10 @@ require_once 'includes/header.php';
             </select>
         </div>
         <div class="form-group">
+            <label for="monthlySalary">Monthly Salary (Rs)</label>
+            <input type="number" id="monthlySalary" name="monthly_salary" step="0.01" required placeholder="e.g., 30000.00">
+        </div>
+        <div class="form-group">
             <label for="phoneNumber">Phone Number</label>
             <input type="tel" id="phoneNumber" name="phone_number" required>
         </div>
@@ -216,6 +272,77 @@ require_once 'includes/header.php';
         </button>
     </div>
 </aside>
+
+<!-- Salary Ledger Modal -->
+<div id="ledgerModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="ledgerModalTitle" class="modal-title">Salary Ledger</h3>
+            <button id="ledgerModalCloseBtn" class="modal-close-btn" title="Close"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="ledger-summary">
+                <div class="summary-item">
+                    <h4>Monthly Salary</h4>
+                    <p id="ledgerSalary">Rs 0.00</p>
+                </div>
+                <div class="summary-item">
+                    <h4>Total Paid</h4>
+                    <p id="ledgerTotalPaid" class="debit-col">Rs 0.00</p>
+                </div>
+                <div class="summary-item">
+                    <h4>Current Balance</h4>
+                    <p id="ledgerBalance">Rs 0.00</p>
+                </div>
+            </div>
+
+            <form id="transactionForm">
+                <input type="hidden" id="txnStaffId" name="staff_id">
+                <div class="form-group">
+                    <label for="txnDate">Date</label>
+                    <input type="date" id="txnDate" name="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="txnAmount">Amount (Rs)</label>
+                    <input type="number" id="txnAmount" name="amount" step="0.01" required>
+                </div>
+                <div class="form-group full-width">
+                    <label for="txnDesc">Description</label>
+                    <input type="text" id="txnDesc" name="description" required>
+                </div>
+                <div class="form-group">
+                    <label for="txnType">Transaction Type</label>
+                    <select id="txnType" name="type" required>
+                        <option value="Debit">Payment / Advance (Debit)</option>
+                        <option value="Credit">Salary / Bonus (Credit)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="submit" class="btn-primary" style="width: 100%;">Add Transaction</button>
+                </div>
+            </form>
+
+            <div id="ledgerTableContainer">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Credit</th>
+                            <th>Debit</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- Confirmation Modal -->
 <div id="confirmationModal" class="modal-overlay">
@@ -249,11 +376,23 @@ document.addEventListener('DOMContentLoaded', function() {
             imageUploadPlaceholder: document.getElementById('imageUploadPlaceholder'),
             searchInput: document.getElementById('searchInput'),
             roleFilter: document.getElementById('roleFilter'),
+            // Confirmation Modal
             confirmationModal: document.getElementById('confirmationModal'),
             modalConfirmBtn: document.getElementById('modalConfirmBtn'),
             modalCancelBtn: document.getElementById('modalCancelBtn'),
             modalTitle: document.getElementById('modalTitle'),
             modalMessage: document.getElementById('modalMessage'),
+            // Ledger Modal
+            ledgerModal: document.getElementById('ledgerModal'),
+            ledgerModalCloseBtn: document.getElementById('ledgerModalCloseBtn'),
+            ledgerModalTitle: document.getElementById('ledgerModalTitle'),
+            ledgerSalary: document.getElementById('ledgerSalary'),
+            ledgerTotalPaid: document.getElementById('ledgerTotalPaid'),
+            ledgerBalance: document.getElementById('ledgerBalance'),
+            transactionForm: document.getElementById('transactionForm'),
+            ledgerTableBody: document.querySelector('.ledger-table tbody'),
+            txnStaffId: document.getElementById('txnStaffId'),
+            // Toast
             toastContainer: document.getElementById('toastContainer'),
         },
         state: {
@@ -261,6 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
             searchTerm: '',
             roleFilter: '',
             itemToDeleteId: null,
+            currentLedgerStaffId: null,
         },
         lazyLoader: null,
 
@@ -295,9 +435,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     this.handleDeleteClick(deleteBtn.dataset.id);
                 }
+
+                const salaryBtn = e.target.closest('.salary-btn');
+                if (salaryBtn) {
+                    e.preventDefault();
+                    this.openLedgerModal(salaryBtn.dataset.id);
+                }
             });
+            // Confirmation Modal
             this.elements.modalConfirmBtn.addEventListener('click', () => this.confirmDelete());
-            this.elements.modalCancelBtn.addEventListener('click', () => this.closeModal());
+            this.elements.modalCancelBtn.addEventListener('click', () => this.closeConfirmationModal());
+            // Ledger Modal
+            this.elements.ledgerModalCloseBtn.addEventListener('click', () => this.closeLedgerModal());
+            this.elements.transactionForm.addEventListener('submit', (e) => this.handleAddTransaction(e));
+            this.elements.ledgerTableBody.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-txn-btn');
+                if (deleteBtn) {
+                    this.handleDeleteTransaction(deleteBtn.dataset.id);
+                }
+            });
         },
         
         async loadData() {
@@ -344,6 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const defaultAvatar = 'https://via.placeholder.com/150/d1d5db/1f2937?text=' + this.escapeHTML(item.FirstName.charAt(0));
             const imageUrl = item.ImageUrl || defaultAvatar;
             const isActive = item.IsActive == 1;
+            const balance = parseFloat(item.Balance || 0);
+            const balanceClass = balance > 0 ? 'positive' : (balance < 0 ? 'negative' : '');
 
             return `
                 <div class="staff-card">
@@ -353,8 +511,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <h3 class="card-name">${this.escapeHTML(item.FirstName)} ${this.escapeHTML(item.LastName)}</h3>
                     <p class="card-role">${this.escapeHTML(item.Role)}</p>
-                    <p class="card-contact">${this.escapeHTML(item.PhoneNumber)}</p>
+                    
+                    <div class="card-salary-info">
+                        <div class="salary-box">
+                            <div class="label">Salary</div>
+                            <div class="amount">Rs ${parseFloat(item.MonthlySalary).toFixed(2)}</div>
+                        </div>
+                        <div class="salary-box">
+                            <div class="label">Balance</div>
+                            <div class="amount ${balanceClass}">Rs ${balance.toFixed(2)}</div>
+                        </div>
+                    </div>
+
                     <div class="card-actions">
+                        <button class="action-btn salary-btn" data-id="${item.StaffID}" title="Manage Salary">
+                            <span class="material-icons-outlined">account_balance_wallet</span>
+                        </button>
                         <button class="action-btn edit-btn" data-id="${item.StaffID}" title="Edit">
                             <span class="material-icons-outlined">edit</span>
                         </button>
@@ -378,6 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('firstName').value = item.FirstName;
                     document.getElementById('lastName').value = item.LastName;
                     document.getElementById('role').value = item.Role;
+                    document.getElementById('monthlySalary').value = parseFloat(item.MonthlySalary).toFixed(2);
                     document.getElementById('phoneNumber').value = item.PhoneNumber;
                     document.getElementById('hireDate').value = item.HireDate;
                     document.getElementById('isActive').checked = (item.IsActive == 1);
@@ -430,19 +603,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
-        closeModal() {
+        closeConfirmationModal() {
             this.elements.confirmationModal.classList.remove('is-visible');
             this.state.itemToDeleteId = null;
         },
 
         async confirmDelete() {
             if (!this.state.itemToDeleteId) return;
-
-            const formData = new FormData();
-            formData.append('action', 'delete');
-            formData.append('id', this.state.itemToDeleteId);
-
             try {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('id', this.state.itemToDeleteId);
                 const response = await fetch('ajax/ajax_handler_staff.php', { method: 'POST', body: formData });
                 const data = await response.json();
                 if (data.success) {
@@ -450,38 +621,145 @@ document.addEventListener('DOMContentLoaded', function() {
                     await this.loadData();
                 } else { throw new Error(data.message); }
             } catch (error) {
-                console.error('Error deleting item:', error);
                 this.showToast(error.message, 'error');
             } finally {
-                this.closeModal();
+                this.closeConfirmationModal();
+            }
+        },
+
+        // Ledger Modal Functions
+        async openLedgerModal(staffId) {
+            this.state.currentLedgerStaffId = staffId;
+            const staff = this.state.items.find(s => s.StaffID == staffId);
+            if (!staff) return;
+
+            this.elements.ledgerModalTitle.textContent = `Ledger for ${this.escapeHTML(staff.FirstName)} ${this.escapeHTML(staff.LastName)}`;
+            this.elements.txnStaffId.value = staffId;
+            document.getElementById('txnDate').valueAsDate = new Date(); // Set to today
+            this.elements.transactionForm.reset(); // Clear form fields
+
+            this.elements.ledgerModal.classList.add('is-visible');
+            await this.refreshLedger(staffId);
+        },
+
+        async refreshLedger(staffId) {
+            try {
+                const response = await fetch(`ajax/ajax_handler_staff.php?action=fetchLedger&staff_id=${staffId}`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message);
+
+                const staff = this.state.items.find(s => s.StaffID == staffId);
+                const ledgerData = result.data;
+                
+                let totalCredit = 0;
+                let totalDebit = 0;
+                
+                this.elements.ledgerTableBody.innerHTML = '';
+                if (ledgerData.length > 0) {
+                    ledgerData.forEach(txn => {
+                        const credit = parseFloat(txn.Credit);
+                        const debit = parseFloat(txn.Debit);
+                        totalCredit += credit;
+                        totalDebit += debit;
+                        this.elements.ledgerTableBody.innerHTML += `
+                            <tr>
+                                <td>${txn.TransactionDate}</td>
+                                <td>${this.escapeHTML(txn.Description)}</td>
+                                <td class="credit-col">${credit > 0 ? `Rs ${credit.toFixed(2)}` : '-'}</td>
+                                <td class="debit-col">${debit > 0 ? `Rs ${debit.toFixed(2)}` : '-'}</td>
+                                <td>
+                                    <button class="delete-txn-btn" data-id="${txn.LedgerID}" title="Delete Transaction">
+                                        <span class="material-icons-outlined" style="font-size: 18px;">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    this.elements.ledgerTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1rem;">No transactions found.</td></tr>`;
+                }
+
+                const balance = totalCredit - totalDebit;
+                const balanceClass = balance > 0 ? 'positive' : (balance < 0 ? 'negative' : '');
+                
+                this.elements.ledgerSalary.textContent = `Rs ${parseFloat(staff.MonthlySalary).toFixed(2)}`;
+                this.elements.ledgerTotalPaid.textContent = `Rs ${totalDebit.toFixed(2)}`;
+                this.elements.ledgerBalance.textContent = `Rs ${balance.toFixed(2)}`;
+                this.elements.ledgerBalance.className = `amount ${balanceClass}`;
+
+            } catch (error) {
+                this.showToast(error.message, 'error');
+            }
+        },
+
+        closeLedgerModal() {
+            this.elements.ledgerModal.classList.remove('is-visible');
+            this.state.currentLedgerStaffId = null;
+        },
+
+        async handleAddTransaction(event) {
+            event.preventDefault();
+            const staffId = this.state.currentLedgerStaffId;
+            if (!staffId) return;
+
+            const formData = new FormData(this.elements.transactionForm);
+            formData.append('action', 'addLedgerTransaction');
+            formData.append('staff_id', staffId);
+
+            try {
+                const response = await fetch('ajax/ajax_handler_staff.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    this.showToast(result.message, 'success');
+                    this.elements.transactionForm.reset();
+                    document.getElementById('txnDate').valueAsDate = new Date();
+                    await this.refreshLedger(staffId);
+                    await this.loadData(); // Reload all staff data to update balances on cards
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                this.showToast(error.message, 'error');
+            }
+        },
+
+        async handleDeleteTransaction(ledgerId) {
+            if (!confirm('Are you sure you want to delete this transaction?')) return;
+            
+            const staffId = this.state.currentLedgerStaffId;
+            try {
+                const formData = new FormData();
+                formData.append('action', 'deleteLedgerTransaction');
+                formData.append('ledger_id', ledgerId);
+                const response = await fetch('ajax/ajax_handler_staff.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    this.showToast(result.message, 'success');
+                    await this.refreshLedger(staffId);
+                    await this.loadData(); // Reload all staff data to update balances on cards
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                this.showToast(error.message, 'error');
             }
         },
 
         showToast(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
-            
             const icon = document.createElement('span');
             icon.className = 'material-icons-outlined';
             icon.textContent = type === 'success' ? 'check_circle' : 'error';
-            
             const text = document.createElement('span');
             text.textContent = message;
-
             toast.appendChild(icon);
             toast.appendChild(text);
-
             this.elements.toastContainer.appendChild(toast);
-
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 100);
-
+            setTimeout(() => toast.classList.add('show'), 100);
             setTimeout(() => {
                 toast.classList.remove('show');
-                setTimeout(() => {
-                    toast.remove();
-                }, 500);
+                setTimeout(() => toast.remove(), 500);
             }, 3500);
         },
 
