@@ -43,28 +43,46 @@ switch ($action) {
         break;
 
     case 'processPayment':
-        // This case remains unchanged and is already correct.
-        $order_id = $_POST['order_id'];
-        $amount_paid = $_POST['amount_paid'];
-        $payment_method = $_POST['payment_method'];
-        $staff_id = $_POST['staff_id'];
+        // This case is now updated to handle manual price adjustments.
+        $order_id = $_POST['order_id'] ?? null;
+        $amount_paid = $_POST['amount_paid'] ?? null;
+        $payment_method = $_POST['payment_method'] ?? null;
+        $staff_id = $_POST['staff_id'] ?? null;
         $transaction_id = !empty($_POST['transaction_id']) ? $_POST['transaction_id'] : null;
 
-        if (empty($order_id) || empty($amount_paid) || empty($payment_method) || empty($staff_id)) {
+        // Using !isset() for amount_paid to allow for a $0 total.
+        if (empty($order_id) || !isset($amount_paid) || empty($payment_method) || empty($staff_id)) {
             $response['message'] = 'All required fields must be filled.';
             break;
         }
 
-        $sql_insert = "INSERT INTO payments (OrderID, AmountPaid, PaymentMethod, ProcessedByStaffID, TransactionID) VALUES (?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql_insert);
-        $stmt->bind_param("idsis", $order_id, $amount_paid, $payment_method, $staff_id, $transaction_id);
-        
-        if ($stmt->execute()) {
+        // Start a transaction to ensure both operations succeed or fail together.
+        $conn->begin_transaction();
+
+        try {
+            // First, update the TotalAmount in the orders table to match the final amount paid.
+            // This handles any discounts or adjustments made on the payment screen.
+            $sql_update = "UPDATE orders SET TotalAmount = ? WHERE OrderID = ?";
+            $stmt_update = $conn->prepare($sql_update);
+            $stmt_update->bind_param("di", $amount_paid, $order_id);
+            $stmt_update->execute();
+            $stmt_update->close();
+
+            // Then, insert the payment record as usual.
+            $sql_insert = "INSERT INTO payments (OrderID, AmountPaid, PaymentMethod, ProcessedByStaffID, TransactionID) VALUES (?, ?, ?, ?, ?)";
+            $stmt_insert = $conn->prepare($sql_insert);
+            $stmt_insert->bind_param("idsis", $order_id, $amount_paid, $payment_method, $staff_id, $transaction_id);
+            $stmt_insert->execute();
+            $stmt_insert->close();
+            
+            // If both queries are successful, commit the transaction.
+            $conn->commit();
             $response = ['success' => true, 'message' => 'Payment Successful!'];
-        } else {
-            $response['message'] = 'Error processing payment: ' . $stmt->error;
+
+        } catch (mysqli_sql_exception $exception) {
+            $conn->rollback();
+            $response['message'] = 'Error processing payment: ' . $exception->getMessage();
         }
-        $stmt->close();
         break;
 }
 
