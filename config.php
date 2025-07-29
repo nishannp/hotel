@@ -1,6 +1,10 @@
 <?php
 // config.php
 
+// --- Timezone Configuration ---
+// Set the default timezone to Kathmandu, Nepal
+date_default_timezone_set('Asia/Kathmandu');
+
 // --- IMPORTANT: Set your database credentials here ---
 define('DB_SERVER', 'localhost');
 define('DB_USERNAME', 'root'); // Your database username (e.g., 'root')
