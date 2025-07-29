@@ -219,7 +219,7 @@ $(document).ready(function() {
         }
 
         itemsToDisplay.forEach(item => {
-            const imageStyle = item.ImageUrl ? `background-image: url('${item.ImageUrl}')` : '';
+            const imageStyle = item.ImageUrl ? `background-image: url('uploads/${item.ImageUrl}')` : '';
             const imageContent = !item.ImageUrl ? '<i class="fas fa-utensils"></i>' : '';
             const itemCard = $(`
                 <div class="menu-item-card" data-menu-item-id="${item.MenuItemID}">
