@@ -176,17 +176,30 @@ CREATE TABLE store_item_categories (
     CategoryName VARCHAR(100) NOT NULL UNIQUE
 );
 
+-- Table for individual store items
+CREATE TABLE store_items (
+    StoreItemID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryID INT NOT NULL,
+    Name VARCHAR(100) NOT NULL,
+    Description TEXT,
+    Price DECIMAL(10, 2) NOT NULL,
+    ImageUrl VARCHAR(255),
+    IsAvailable BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (CategoryID) REFERENCES store_item_categories(CategoryID) ON DELETE CASCADE
+);
+
 --
 -- Table 2: store_sales_log
--- Description: A simple log to record every sale. You enter the price manually.
+-- Description: A log to record sales of individual store items.
 --
 CREATE TABLE store_sales_log (
     SaleID INT PRIMARY KEY AUTO_INCREMENT,
-    CategoryID INT NOT NULL,
-    ItemDescription TEXT, -- Optional: Describe what was sold (e.g., "Coke and Lays chips")
-    TotalAmount DECIMAL(10, 2) NOT NULL COMMENT 'The total price you enter manually.',
+    StoreItemID INT NOT NULL,
+    Quantity INT NOT NULL DEFAULT 1,
+    SalePrice DECIMAL(10, 2) NOT NULL COMMENT 'Price of the item at the time of sale.',
+    TotalAmount DECIMAL(10, 2) GENERATED ALWAYS AS (SalePrice * Quantity) STORED,
     SaleTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (CategoryID) REFERENCES store_item_categories(CategoryID)
+    FOREIGN KEY (StoreItemID) REFERENCES store_items(StoreItemID) ON DELETE CASCADE
 );
 
 

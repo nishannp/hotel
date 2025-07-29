@@ -243,11 +243,14 @@ try {
     $report_store_sales_res = $conn->query("
         SELECT
             s.SaleTime,
-            sc.CategoryName,
-            s.ItemDescription,
+            sic.CategoryName,
+            si.Name as ItemName,
+            s.Quantity,
+            s.SalePrice,
             s.TotalAmount
         FROM store_sales_log s
-        JOIN store_item_categories sc ON s.CategoryID = sc.CategoryID
+        JOIN store_items si ON s.StoreItemID = si.StoreItemID
+        JOIN store_item_categories sic ON si.CategoryID = sic.CategoryID
         WHERE s.SaleTime BETWEEN '$today_start' AND '$today_end'
         ORDER BY s.SaleTime DESC
     ");

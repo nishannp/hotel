@@ -98,6 +98,13 @@ function isActive($page) {
                     <i class="fa-solid fa-store"></i> Store Categories
                 </a>
             </li>
+
+             <li>
+                <a href="store_items.php" class="<?php echo isActive('store_items.php'); ?>">
+                    <i class="fa-solid fa-dollar-sign"></i> Store Item
+                </a>
+            </li>
+
             <li>
                 <a href="store_sales.php" class="<?php echo isActive('store_sales.php'); ?>">
                     <i class="fa-solid fa-dollar-sign"></i> Store Sales

@@ -1,5 +1,4 @@
 <?php 
-// store_sales.php
 require_once 'includes/header.php'; 
 ?>
 
@@ -8,7 +7,7 @@ require_once 'includes/header.php';
 
 <div class="page-container">
     <div class="page-header">
-        <h2>Store Sales Log</h2>
+        <h2>Store Sales</h2>
     </div>
 
     <div class="sales-container">
@@ -21,25 +20,32 @@ require_once 'includes/header.php';
                 <div class="card-body">
                     <form id="saleForm">
                         <div class="form-group">
-                            <label for="saleCategory">Item Category</label>
-                            <select id="saleCategory" name="category_id" required>
-                                <option value="">Select a category...</option>
+                            <label for="saleCategory">Filter by Category</label>
+                            <select id="saleCategory" name="category_id">
+                                <option value="0">All Categories</option>
                                 <!-- Categories will be loaded here via JS -->
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="saleTotalAmount">Sale Amount ($)</label>
-                            <input type="number" id="saleTotalAmount" name="TotalAmount" step="0.01" min="0" required placeholder="e.g., 15.50">
+                            <label for="storeItem">Item</label>
+                            <select id="storeItem" name="store_item_id" required disabled>
+                                <option value="">Select a category first...</option>
+                            </select>
                         </div>
-                        <div class="form-group" style="display: none;">
-                            <label for="saleTime">Date of Sale</label>
-                            <input type="hidden" id="saleTime" name="SaleTime" required>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="itemPrice">Price ($)</label>
+                                <input type="text" id="itemPrice" readonly placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="saleQuantity">Quantity</label>
+                                <input type="number" id="saleQuantity" name="quantity" value="1" min="1" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="saleItemDescription">Notes (Optional)</label>
-                            <textarea id="saleItemDescription" name="ItemDescription" rows="3" placeholder="Any details about the sale..."></textarea>
+                        <div class="form-group total-display">
+                            <strong>Total: $<span id="totalAmountDisplay">0.00</span></strong>
                         </div>
-                        <button type="submit" class="btn-primary">
+                        <button type="submit" class="btn-primary" disabled>
                             <span class="material-icons-outlined">save</span> Record Sale
                         </button>
                     </form>
@@ -53,7 +59,7 @@ require_once 'includes/header.php';
                 <div class="card-header">
                     <h3><span class="material-icons-outlined">history</span> Recent Sales</h3>
                     <div class="filter-bar">
-                         <input type="text" id="logSearch" placeholder="Search logs by category, notes, amount...">
+                         <input type="text" id="logSearch" placeholder="Search by item, category...">
                     </div>
                 </div>
                 <div class="card-body">
@@ -62,9 +68,11 @@ require_once 'includes/header.php';
                             <thead>
                                 <tr>
                                     <th>Category</th>
-                                    <th>Amount</th>
+                                    <th>Item Name</th>
+                                    <th>Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
                                     <th>Date</th>
-                                    <th>Notes</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -88,11 +96,11 @@ require_once 'includes/header.php';
 <div id="confirmationModal" class="confirmation-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="confirmationTitle">Confirm Deletion</h3>
+            <h3>Confirm Deletion</h3>
             <button id="closeConfirmationModalBtn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
-            <p id="confirmationMessage">Are you sure you want to delete this sale record? This action cannot be undone.</p>
+            <p>Are you sure you want to delete this sale record? This action cannot be undone.</p>
         </div>
         <div class="modal-footer">
             <button id="cancelDeleteBtn" class="btn-secondary">Cancel</button>
@@ -106,29 +114,17 @@ require_once 'includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Set page title
     document.querySelector('.content-header h1').textContent = 'Store Sales';
-
-    const setSaleDate = () => {
-        const now = new Date();
-        // Format to YYYY-MM-DD HH:MM:SS for MySQL DATETIME
-        const year = now.getFullYear();
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        const seconds = now.getSeconds().toString().padStart(2, '0');
-        const formattedDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        document.getElementById('saleTime').value = formattedDateTime;
-    };
-
-    // Set initial sale date/time
-    setSaleDate();
 
     const SalesApp = {
         elements: {
             form: document.getElementById('saleForm'),
             categorySelect: document.getElementById('saleCategory'),
+            itemSelect: document.getElementById('storeItem'),
+            itemPrice: document.getElementById('itemPrice'),
+            quantityInput: document.getElementById('saleQuantity'),
+            totalDisplay: document.getElementById('totalAmountDisplay'),
+            submitButton: document.querySelector('#saleForm button[type="submit"]'),
             logTableBody: document.querySelector('#salesLogTable tbody'),
             logEmptyState: document.getElementById('logEmptyState'),
             logSearch: document.getElementById('logSearch'),
@@ -139,18 +135,24 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         state: {
             sales: [],
+            storeItems: [],
             searchTerm: '',
             deleteSaleId: null,
         },
 
         init() {
             this.loadCategories();
+            this.loadStoreItems(0); // Load all items initially
             this.loadSales();
             this.bindEvents();
         },
 
         bindEvents() {
             this.elements.form.addEventListener('submit', e => this.handleFormSubmit(e));
+            this.elements.categorySelect.addEventListener('change', e => this.loadStoreItems(e.target.value));
+            this.elements.itemSelect.addEventListener('change', e => this.updatePriceAndTotal());
+            this.elements.quantityInput.addEventListener('input', e => this.updatePriceAndTotal());
+            
             this.elements.logSearch.addEventListener('input', e => {
                 this.state.searchTerm = e.target.value.toLowerCase();
                 this.renderSales();
@@ -162,7 +164,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Modal events
             this.elements.confirmDeleteBtn.addEventListener('click', () => this.executeDelete());
             this.elements.cancelDeleteBtn.addEventListener('click', () => this.hideConfirmationModal());
             this.elements.closeConfirmationModalBtn.addEventListener('click', () => this.hideConfirmationModal());
@@ -173,20 +174,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch('ajax/ajax_handler_store_categories.php?action=fetchAll');
                 const data = await response.json();
                 if (data.success) {
-                    this.elements.categorySelect.innerHTML = '<option value="">Select a category...</option>';
+                    const select = this.elements.categorySelect;
+                    select.innerHTML = '<option value="0">All Categories</option>';
                     data.data.forEach(cat => {
-                        const option = document.createElement('option');
-                        option.value = cat.CategoryID;
-                        option.textContent = this.escapeHTML(cat.CategoryName);
-                        this.elements.categorySelect.appendChild(option);
+                        select.innerHTML += `<option value="${cat.CategoryID}">${this.escapeHTML(cat.CategoryName)}</option>`;
                     });
                 } else {
                     this.showToast('Failed to load store categories.', 'error');
                 }
             } catch (error) {
-                console.error("Error loading categories:", error);
                 this.showToast('An error occurred while fetching categories.', 'error');
             }
+        },
+
+        async loadStoreItems(categoryId) {
+            try {
+                const response = await fetch(`ajax/ajax_handler_store_sales.php?action=fetchStoreItems&category_id=${categoryId}`);
+                const data = await response.json();
+                if (data.success) {
+                    this.state.storeItems = data.data;
+                    this.populateItemSelect();
+                } else {
+                    this.showToast('Failed to load store items.', 'error');
+                }
+            } catch (error) {
+                this.showToast('An error occurred while fetching items.', 'error');
+            }
+        },
+
+        populateItemSelect() {
+            const select = this.elements.itemSelect;
+            select.innerHTML = '<option value="">Select an item...</option>';
+            if (this.state.storeItems.length > 0) {
+                this.state.storeItems.forEach(item => {
+                    select.innerHTML += `<option value="${item.StoreItemID}" data-price="${item.Price}">${this.escapeHTML(item.Name)}</option>`;
+                });
+                select.disabled = false;
+            } else {
+                select.innerHTML = '<option value="">No items in this category</option>';
+                select.disabled = true;
+            }
+            this.updatePriceAndTotal();
+        },
+
+        updatePriceAndTotal() {
+            const selectedOption = this.elements.itemSelect.options[this.elements.itemSelect.selectedIndex];
+            const price = selectedOption ? selectedOption.dataset.price || 0 : 0;
+            const quantity = parseInt(this.elements.quantityInput.value) || 0;
+            
+            this.elements.itemPrice.value = parseFloat(price).toFixed(2);
+            this.elements.totalDisplay.textContent = (price * quantity).toFixed(2);
+
+            this.elements.submitButton.disabled = !selectedOption || !selectedOption.value;
         },
 
         async loadSales() {
@@ -196,7 +235,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.state.sales = data.success ? data.data : [];
                 this.renderSales();
             } catch (error) {
-                console.error("Error loading sales:", error);
                 this.showToast('Failed to load sales log.', 'error');
             }
         },
@@ -205,11 +243,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.logTableBody.innerHTML = '';
             const filteredSales = this.state.sales.filter(sale => {
                 const categoryName = sale.CategoryName ? sale.CategoryName.toLowerCase() : '';
-                const description = sale.ItemDescription ? sale.ItemDescription.toLowerCase() : '';
-                const amount = sale.TotalAmount ? sale.TotalAmount.toString() : '';
+                const itemName = sale.ItemName ? sale.ItemName.toLowerCase() : '';
                 return categoryName.includes(this.state.searchTerm) ||
-                       description.includes(this.state.searchTerm) ||
-                       amount.includes(this.state.searchTerm);
+                       itemName.includes(this.state.searchTerm);
             });
 
             if (filteredSales.length === 0) {
@@ -222,9 +258,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const row = `
                         <tr>
                             <td>${this.escapeHTML(sale.CategoryName)}</td>
+                            <td>${this.escapeHTML(sale.ItemName)}</td>
+                            <td>${sale.Quantity}</td>
+                            <td>${parseFloat(sale.SalePrice).toFixed(2)}</td>
                             <td>${parseFloat(sale.TotalAmount).toFixed(2)}</td>
                             <td>${new Date(sale.SaleTime).toLocaleString()}</td>
-                            <td>${this.escapeHTML(sale.ItemDescription) || 'N/A'}</td>
                             <td>
                                 <button class="delete-btn" data-id="${sale.SaleID}" title="Delete Sale">
                                     <span class="material-icons-outlined">delete_outline</span>
@@ -251,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     this.showToast('Sale recorded successfully!', 'success');
                     this.elements.form.reset();
-                    setSaleDate(); // Reset date to current time
+                    this.updatePriceAndTotal();
                     this.loadSales(); // Refresh the log
                 } else {
                     throw new Error(data.message || 'Could not record sale.');
@@ -298,17 +336,13 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.confirmationModal.classList.remove('show');
         },
 
-        showToast(message, type = 'success') { // type can be 'success' or 'error'
+        showToast(message, type = 'success') {
             const toast = document.getElementById('toastNotification');
-            
             const icon = type === 'success' 
                 ? '<span class="material-icons-outlined">check_circle</span>' 
                 : '<span class="material-icons-outlined">error</span>';
-
             toast.innerHTML = `${icon} ${this.escapeHTML(message)}`;
-            
             toast.className = `toast-notification show ${type}`;
-            
             setTimeout(() => {
                 toast.className = 'toast-notification';
             }, 3000);
