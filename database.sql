@@ -190,16 +190,18 @@ CREATE TABLE store_items (
 
 --
 -- Table 2: store_sales_log
--- Description: A log to record sales of individual store items.
+-- Description: A log to record sales of individual store items, grouped by transaction.
 --
 CREATE TABLE store_sales_log (
     SaleID INT PRIMARY KEY AUTO_INCREMENT,
+    TransactionID VARCHAR(50) NOT NULL COMMENT 'Groups multiple items into a single sale.',
     StoreItemID INT NOT NULL,
     Quantity INT NOT NULL DEFAULT 1,
     SalePrice DECIMAL(10, 2) NOT NULL COMMENT 'Price of the item at the time of sale.',
     TotalAmount DECIMAL(10, 2) GENERATED ALWAYS AS (SalePrice * Quantity) STORED,
     SaleTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (StoreItemID) REFERENCES store_items(StoreItemID) ON DELETE CASCADE
+    FOREIGN KEY (StoreItemID) REFERENCES store_items(StoreItemID) ON DELETE CASCADE,
+    INDEX idx_transaction_id (TransactionID)
 );
 
 

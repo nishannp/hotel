@@ -11,103 +11,94 @@ $response = ['success' => false, 'message' => 'Invalid action specified.'];
 
 switch ($action) {
     case 'fetchStoreItems':
-        $categoryId = $_GET['category_id'] ?? 0;
+        $sql = "SELECT StoreItemID, Name, Price, ImageUrl, CategoryID FROM store_items WHERE IsAvailable = TRUE ORDER BY Name";
+        $result = $conn->query($sql);
         $items = [];
-        $sql = "SELECT StoreItemID, Name, Price FROM store_items WHERE IsAvailable = TRUE";
-        if ($categoryId > 0) {
-            $sql .= " AND CategoryID = ?";
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                // Ensure the image URL is correctly formed
+                $row['ImageUrl'] = !empty($row['ImageUrl']) ? '/hotel' . $row['ImageUrl'] : 'https://via.placeholder.com/300/e5e7eb/6b7280?text=No+Image';
+                $items[] = $row;
+            }
         }
-        $sql .= " ORDER BY Name";
-        
-        $stmt = $conn->prepare($sql);
-        if ($categoryId > 0) {
-            $stmt->bind_param("i", $categoryId);
-        }
-        
-        $stmt->execute();
-        $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) {
-            $items[] = $row;
-        }
-        $stmt->close();
         $response = ['success' => true, 'data' => $items];
         break;
 
-    case 'fetchAll':
-        $sql = "SELECT sl.SaleID, sl.Quantity, sl.SalePrice, sl.TotalAmount, sl.SaleTime,
-                       si.Name AS ItemName, sic.CategoryName 
-                FROM store_sales_log sl
-                JOIN store_items si ON sl.StoreItemID = si.StoreItemID
-                JOIN store_item_categories sic ON si.CategoryID = sic.CategoryID
-                ORDER BY sl.SaleTime DESC, sl.SaleID DESC";
+    case 'fetchAllSales':
+        $sql = "
+            SELECT 
+                sl.TransactionID, 
+                SUM(sl.Quantity * sl.SalePrice) as GrandTotal, 
+                MIN(sl.SaleTime) as SaleTime,
+                GROUP_CONCAT(CONCAT(si.Name, ' (x', sl.Quantity, ')') SEPARATOR ', ') as ItemsSummary
+            FROM store_sales_log sl
+            JOIN store_items si ON sl.StoreItemID = si.StoreItemID
+            GROUP BY sl.TransactionID
+            ORDER BY SaleTime DESC, sl.TransactionID DESC";
         $result = $conn->query($sql);
-        $sales = [];
         if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $sales[] = $row;
-            }
+            $sales = $result->fetch_all(MYSQLI_ASSOC);
             $response = ['success' => true, 'data' => $sales];
         } else {
-            $response['message'] = 'Error fetching sales log: ' . $conn->error;
+            $response = ['success' => false, 'message' => 'Failed to fetch sales history: ' . $conn->error];
         }
         break;
 
     case 'recordSale':
-        $storeItemId = $_POST['store_item_id'] ?? 0;
-        $quantity = $_POST['quantity'] ?? 0;
+        $cart_json = $_POST['cart'] ?? '[]';
+        $cart = json_decode($cart_json, true);
 
-        if (empty($storeItemId) || empty($quantity)) {
-            $response['message'] = 'Store Item and Quantity are required.';
-            break;
-        }
-        if (!is_numeric($quantity) || $quantity <= 0) {
-            $response['message'] = 'Please enter a valid, positive quantity.';
+        if (empty($cart) || !is_array($cart)) {
+            $response['message'] = 'The cart is empty or invalid.';
             break;
         }
 
-        // Get the current price of the item to store with the sale record
-        $priceStmt = $conn->prepare("SELECT Price FROM store_items WHERE StoreItemID = ?");
-        $priceStmt->bind_param("i", $storeItemId);
-        $priceStmt->execute();
-        $result = $priceStmt->get_result();
-        if ($result->num_rows === 0) {
-            $response['message'] = 'Selected store item not found.';
-            $priceStmt->close();
-            break;
-        }
-        $item = $result->fetch_assoc();
-        $salePrice = $item['Price'];
-        $priceStmt->close();
+        $conn->begin_transaction();
 
         try {
-            $sql = "INSERT INTO store_sales_log (StoreItemID, Quantity, SalePrice) VALUES (?, ?, ?)";
+            $transaction_id = 'SALE-' . uniqid();
+            $sql = "INSERT INTO store_sales_log (TransactionID, StoreItemID, Quantity, SalePrice) VALUES (?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iid", $storeItemId, $quantity, $salePrice);
-            
-            if ($stmt->execute()) {
-                $response = ['success' => true, 'message' => 'Sale recorded successfully.'];
-            } else {
-                $response['message'] = 'Database error: ' . $stmt->error;
+
+            foreach ($cart as $item) {
+                $item_id = $item['id'];
+                $quantity = $item['quantity'];
+                
+                // Get the current price to prevent price-tampering
+                $price_res = $conn->query("SELECT Price FROM store_items WHERE StoreItemID = $item_id");
+                if ($price_res->num_rows === 0) {
+                    throw new Exception("Item with ID $item_id not found.");
+                }
+                $sale_price = $price_res->fetch_assoc()['Price'];
+
+                $stmt->bind_param("siid", $transaction_id, $item_id, $quantity, $sale_price);
+                if (!$stmt->execute()) {
+                    throw new Exception("Failed to record sale for item ID $item_id: " . $stmt->error);
+                }
             }
-            $stmt->close();
+
+            $conn->commit();
+            $response = ['success' => true, 'message' => 'Sale recorded successfully!'];
+
         } catch (Exception $e) {
-            $response['message'] = 'An exception occurred: ' . $e->getMessage();
+            $conn->rollback();
+            $response['message'] = 'Transaction failed: ' . $e->getMessage();
         }
         break;
 
     case 'deleteSale':
-        $saleId = $_POST['sale_id'] ?? 0;
-        if ($saleId > 0) {
-            $stmt = $conn->prepare("DELETE FROM store_sales_log WHERE SaleID = ?");
-            $stmt->bind_param("i", $saleId);
+        $transactionId = $_POST['transaction_id'] ?? '';
+        if (!empty($transactionId)) {
+            $stmt = $conn->prepare("DELETE FROM store_sales_log WHERE TransactionID = ?");
+            $stmt->bind_param("s", $transactionId);
             if ($stmt->execute()) {
-                $response = ['success' => true, 'message' => 'Sale record deleted successfully.'];
+                $response = ['success' => true, 'message' => 'Sale transaction deleted successfully.'];
             } else {
-                $response['message'] = 'Error deleting sale record: ' . $stmt->error;
+                $response['message'] = 'Error deleting sale transaction: ' . $stmt->error;
             }
             $stmt->close();
         } else {
-            $response['message'] = 'Invalid ID provided for deletion.';
+            $response['message'] = 'Invalid Transaction ID provided for deletion.';
         }
         break;
 }
