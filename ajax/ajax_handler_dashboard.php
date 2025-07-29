@@ -24,11 +24,21 @@ try {
     // 1. KPI Stats & Comparisons
     // =================================================================
     $data['kpi'] = [];
-    // Revenue
+    // Hotel Revenue
     $rev_today_res = $conn->query("SELECT SUM(TotalAmount) as total FROM orders WHERE OrderStatus = 'Completed' AND OrderTime BETWEEN '$today_start' AND '$today_end'");
-    $data['kpi']['revenue_today'] = $rev_today_res->fetch_assoc()['total'] ?? 0;
+    $data['kpi']['hotel_revenue_today'] = $rev_today_res->fetch_assoc()['total'] ?? 0;
     $rev_yesterday_res = $conn->query("SELECT SUM(TotalAmount) as total FROM orders WHERE OrderStatus = 'Completed' AND OrderTime BETWEEN '$yesterday_start' AND '$yesterday_end'");
-    $data['kpi']['revenue_yesterday'] = $rev_yesterday_res->fetch_assoc()['total'] ?? 0;
+    $data['kpi']['hotel_revenue_yesterday'] = $rev_yesterday_res->fetch_assoc()['total'] ?? 0;
+
+    // Store Revenue
+    $store_rev_today_res = $conn->query("SELECT SUM(TotalAmount) as total FROM store_sales_log WHERE SaleTime BETWEEN '$today_start' AND '$today_end'");
+    $data['kpi']['store_revenue_today'] = $store_rev_today_res->fetch_assoc()['total'] ?? 0;
+    $store_rev_yesterday_res = $conn->query("SELECT SUM(TotalAmount) as total FROM store_sales_log WHERE SaleTime BETWEEN '$yesterday_start' AND '$yesterday_end'");
+    $data['kpi']['store_revenue_yesterday'] = $store_rev_yesterday_res->fetch_assoc()['total'] ?? 0;
+
+    // Combined Revenue
+    $data['kpi']['total_revenue_today'] = $data['kpi']['hotel_revenue_today'] + $data['kpi']['store_revenue_today'];
+    $data['kpi']['total_revenue_yesterday'] = $data['kpi']['hotel_revenue_yesterday'] + $data['kpi']['store_revenue_yesterday'];
 
     // Orders
     $orders_today_res = $conn->query("SELECT COUNT(OrderID) as count, SUM(CASE WHEN OrderStatus = 'Completed' THEN 1 ELSE 0 END) as completed_count FROM orders WHERE OrderTime BETWEEN '$today_start' AND '$today_end'");
@@ -38,7 +48,7 @@ try {
 
 
     // Avg. Order Value
-    $data['kpi']['aov_today'] = ($data['kpi']['completed_orders_today'] > 0) ? ($data['kpi']['revenue_today'] / $data['kpi']['completed_orders_today']) : 0;
+    $data['kpi']['aov_today'] = ($data['kpi']['completed_orders_today'] > 0) ? ($data['kpi']['hotel_revenue_today'] / $data['kpi']['completed_orders_today']) : 0;
 
     // New Customers
     $new_cust_res = $conn->query("SELECT COUNT(CustomerID) as count FROM customers WHERE CreatedAt BETWEEN '$today_start' AND '$today_end'");
@@ -65,11 +75,23 @@ try {
     // 3. Sales Chart Data (Last 30 Days)
     // =================================================================
     $sales_chart_data = ['labels' => [], 'values' => []];
-    $result = $conn->query("SELECT DATE(OrderTime) as order_date, SUM(TotalAmount) as daily_total FROM orders WHERE OrderStatus = 'Completed' AND OrderTime >= '$thirty_days_ago' GROUP BY order_date ORDER BY order_date ASC");
+    // Hotel Sales
+    $hotel_sales_res = $conn->query("SELECT DATE(OrderTime) as order_date, SUM(TotalAmount) as daily_total FROM orders WHERE OrderStatus = 'Completed' AND OrderTime >= '$thirty_days_ago' GROUP BY order_date");
     $daily_sales = [];
-    while($row = $result->fetch_assoc()){
-        $daily_sales[$row['order_date']] = $row['daily_total'];
+    while($row = $hotel_sales_res->fetch_assoc()){
+        $daily_sales[$row['order_date']] = (float)$row['daily_total'];
     }
+
+    // Store Sales
+    $store_sales_res = $conn->query("SELECT DATE(SaleTime) as sale_date, SUM(TotalAmount) as daily_total FROM store_sales_log WHERE SaleTime >= '$thirty_days_ago' GROUP BY sale_date");
+    while($row = $store_sales_res->fetch_assoc()){
+        if (isset($daily_sales[$row['sale_date']])) {
+            $daily_sales[$row['sale_date']] += (float)$row['daily_total'];
+        } else {
+            $daily_sales[$row['sale_date']] = (float)$row['daily_total'];
+        }
+    }
+
     for ($i = 29; $i >= 0; $i--) {
         $date = date('Y-m-d', strtotime("-$i days"));
         $sales_chart_data['labels'][] = date('M j', strtotime($date));
@@ -206,6 +228,20 @@ try {
         ORDER BY TotalRevenue DESC
     ");
     $data['todays_report']['staff_performance'] = $staff_performance_res->fetch_all(MYSQLI_ASSOC);
+
+    // Today's Store Sales
+    $report_store_sales_res = $conn->query("
+        SELECT
+            s.SaleTime,
+            sc.CategoryName,
+            s.ItemDescription,
+            s.TotalAmount
+        FROM store_sales_log s
+        JOIN store_item_categories sc ON s.CategoryID = sc.CategoryID
+        WHERE s.SaleTime BETWEEN '$today_start' AND '$today_end'
+        ORDER BY s.SaleTime DESC
+    ");
+    $data['todays_report']['store_sales'] = $report_store_sales_res->fetch_all(MYSQLI_ASSOC);
 
 
     $conn->commit();

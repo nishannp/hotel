@@ -100,7 +100,7 @@ require_once 'includes/header.php';
 
 /* Responsive Grid */
 @media (min-width: 768px) {
-    .kpi-card-grid { grid-column: span 12; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.5rem; }
+    .kpi-card-grid { grid-column: span 12; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
     .chart-card { grid-column: span 12; }
     .pie-chart-card { grid-column: span 4; }
     .list-card { grid-column: span 4; }
@@ -120,19 +120,24 @@ require_once 'includes/header.php';
         <div class="dashboard-grid">
             <div class="kpi-card-grid">
                 <div class="db-card kpi-card">
-                    <div class="kpi-label"><span class="material-icons-outlined">monetization_on</span> Today's Revenue</div>
-                    <div id="kpi-revenue" class="kpi-value">$0.00</div>
-                    <div id="kpi-revenue-comp" class="kpi-comparison"></div>
+                    <div class="kpi-label"><span class="material-icons-outlined">monetization_on</span> Total Revenue</div>
+                    <div id="kpi-total-revenue" class="kpi-value">$0.00</div>
+                    <div id="kpi-total-revenue-comp" class="kpi-comparison"></div>
                 </div>
-                <div class="db-card kpi-card">
-                    <div class="kpi-label"><span class="material-icons-outlined">receipt_long</span> Today's Orders</div>
-                    <div id="kpi-orders" class="kpi-value">0</div>
-                    <div class="kpi-comparison"></div>
-                </div>
-                <div class="db-card kpi-card">
-                    <div class="kpi-label"><span class="material-icons-outlined">point_of_sale</span> Avg. Order Value</div>
-                    <div id="kpi-aov" class="kpi-value">$0.00</div>
+                 <div class="db-card kpi-card">
+                    <div class="kpi-label"><span class="material-icons-outlined">restaurant</span> Hotel Revenue</div>
+                    <div id="kpi-hotel-revenue" class="kpi-value">$0.00</div>
                     <div class="kpi-comparison">Today</div>
+                </div>
+                <div class="db-card kpi-card">
+                    <div class="kpi-label"><span class="material-icons-outlined">storefront</span> Store Revenue</div>
+                    <div id="kpi-store-revenue" class="kpi-value">$0.00</div>
+                    <div class="kpi-comparison">Today</div>
+                </div>
+                <div class="db-card kpi-card">
+                    <div class="kpi-label"><span class="material-icons-outlined">receipt_long</span> Hotel Orders</div>
+                    <div id="kpi-orders" class="kpi-value">0</div>
+                    <div class="kpi-comparison">Completed Today</div>
                 </div>
                 <div class="db-card kpi-card">
                     <div class="kpi-label"><span class="material-icons-outlined">person_add</span> New Customers</div>
@@ -198,7 +203,7 @@ require_once 'includes/header.php';
                     </table>
                 </div>
             </div>
-            <div class="db-card" style="grid-column: span 12;">
+            <div class="db-card" style="grid-column: span 6;">
                 <div class="db-card-header"><h3 class="db-card-title">Today's Sales by Menu Item</h3></div>
                  <div style="overflow-x: auto;">
                     <table class="report-table" id="report-menu-sales-table">
@@ -208,7 +213,23 @@ require_once 'includes/header.php';
                                 <th>Category</th>
                                 <th>Qty Sold</th>
                                 <th>Revenue</th>
-                                <th>% of Total</th>
+                                <th>% of Hotel Total</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="db-card" style="grid-column: span 6;">
+                <div class="db-card-header"><h3 class="db-card-title">Today's Store Sales</h3></div>
+                 <div style="overflow-x: auto; max-height: 400px;">
+                    <table class="report-table" id="report-store-sales-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Amount</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -282,10 +303,11 @@ document.addEventListener('DOMContentLoaded', function() {
             tabs: document.querySelectorAll('.tab-link'),
             tabContents: document.querySelectorAll('.tab-content'),
             // KPI
-            kpiRevenue: document.getElementById('kpi-revenue'),
-            kpiRevenueComp: document.getElementById('kpi-revenue-comp'),
+            kpiTotalRevenue: document.getElementById('kpi-total-revenue'),
+            kpiTotalRevenueComp: document.getElementById('kpi-total-revenue-comp'),
+            kpiStoreRevenue: document.getElementById('kpi-store-revenue'),
+            kpiHotelRevenue: document.getElementById('kpi-hotel-revenue'),
             kpiOrders: document.getElementById('kpi-orders'),
-            kpiAOV: document.getElementById('kpi-aov'),
             kpiNewCustomers: document.getElementById('kpi-new-customers'),
             kpiAlerts: document.getElementById('kpi-alerts'),
             kpiTablesSummary: document.getElementById('kpi-tables-summary'),
@@ -305,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reportOrdersTableBody: document.querySelector('#report-orders-table tbody'),
             reportMenuSalesTableBody: document.querySelector('#report-menu-sales-table tbody'),
             reportStaffTableBody: document.querySelector('#report-staff-table tbody'),
+            reportStoreSalesTableBody: document.querySelector('#report-store-sales-table tbody'),
             // Modal
             modal: document.getElementById('order-details-modal'),
             modalTitle: document.getElementById('modal-title'),
@@ -382,15 +405,16 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         renderKPIs(kpi, tables) {
-            this.elements.kpiRevenue.textContent = `$${parseFloat(kpi.revenue_today || 0).toFixed(2)}`;
-            this.elements.kpiOrders.textContent = kpi.orders_today || 0;
-            this.elements.kpiAOV.textContent = `$${parseFloat(kpi.aov_today || 0).toFixed(2)}`;
+            this.elements.kpiTotalRevenue.textContent = `Rs ${parseFloat(kpi.total_revenue_today || 0).toFixed(2)}`;
+            this.elements.kpiStoreRevenue.textContent = `Rs ${parseFloat(kpi.store_revenue_today || 0).toFixed(2)}`;
+            this.elements.kpiHotelRevenue.textContent = `Rs ${parseFloat(kpi.hotel_revenue_today || 0).toFixed(2)}`;
+            this.elements.kpiOrders.textContent = kpi.completed_orders_today || 0;
             this.elements.kpiNewCustomers.textContent = kpi.new_customers_today || 0;
             this.elements.kpiAlerts.textContent = kpi.low_stock_alerts || 0;
             
-            const diff = kpi.revenue_today - kpi.revenue_yesterday;
-            const percent_diff = kpi.revenue_yesterday > 0 ? (diff / kpi.revenue_yesterday) * 100 : (kpi.revenue_today > 0 ? 100 : 0);
-            const compEl = this.elements.kpiRevenueComp;
+            const diff = kpi.total_revenue_today - kpi.total_revenue_yesterday;
+            const percent_diff = kpi.total_revenue_yesterday > 0 ? (diff / kpi.total_revenue_yesterday) * 100 : (kpi.total_revenue_today > 0 ? 100 : 0);
+            const compEl = this.elements.kpiTotalRevenueComp;
             
             if (diff >= 0) {
                 compEl.className = 'kpi-comparison positive';
@@ -448,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const options = {
                 responsive: true, maintainAspectRatio: false,
                 scales: { 
-                    y: { beginAtZero: true, ticks: { callback: value => '$' + value } },
+                    y: { beginAtZero: true, ticks: { callback: value => 'Rs ' + value } },
                     x: { grid: { display: false } }
                 },
                 plugins: { legend: { display: false } }
@@ -520,8 +544,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.renderTable(this.elements.reportStaffTableBody, reportData.staff_performance, this.createReportStaffRowHTML);
             this.renderPaymentMethodsChart(reportData.payment_methods);
             
-            const totalRevenue = kpiData.revenue_today;
-            this.renderTable(this.elements.reportMenuSalesTableBody, reportData.menu_sales, (item) => this.createReportMenuSaleRowHTML(item, totalRevenue));
+            const totalHotelRevenue = kpiData.hotel_revenue_today;
+            this.renderTable(this.elements.reportMenuSalesTableBody, reportData.menu_sales, (item) => this.createReportMenuSaleRowHTML(item, totalHotelRevenue));
+            this.renderTable(this.elements.reportStoreSalesTableBody, reportData.store_sales, this.createReportStoreSaleRowHTML);
         },
 
         renderPaymentMethodsChart(paymentData) {
@@ -540,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { 
                     legend: { position: 'bottom', labels: { boxWidth: 12 } },
-                    tooltip: { callbacks: { label: (c) => ` ${c.label}: $${parseFloat(c.raw).toFixed(2)}` } }
+                    tooltip: { callbacks: { label: (c) => ` ${c.label}: Rs ${parseFloat(c.raw).toFixed(2)}` } }
                 }
             };
             this.renderChart(this.elements.paymentMethodsChartCanvas, 'doughnut', data, options);
@@ -551,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="list-item">
                     <div class="item-info">
                         <div class="item-name">Order #${item.OrderID} (Table ${item.TableNumber})</div>
-                        <div class="item-subtext">$${parseFloat(item.TotalAmount).toFixed(2)}</div>
+                        <div class="item-subtext">Rs ${parseFloat(item.TotalAmount).toFixed(2)}</div>
                     </div>
                     <div class="item-trailing">
                         <span class="status-badge status-${item.OrderStatus.replace(' ', '-')}">${item.OrderStatus}</span>
@@ -595,21 +620,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.TableNumber}</td>
                     <td>${customerName}</td>
                     <td>${item.StaffFirstName} ${item.StaffLastName}</td>
-                    <td>$${parseFloat(item.TotalAmount).toFixed(2)}</td>
+                    <td>Rs ${parseFloat(item.TotalAmount).toFixed(2)}</td>
                     <td><span class="status-badge status-${item.OrderStatus}">${item.OrderStatus}</span></td>
                 </tr>
             `;
         },
 
-        createReportMenuSaleRowHTML(item, totalRevenue) {
+        createReportMenuSaleRowHTML(item, totalHotelRevenue) {
             const revenue = parseFloat(item.TotalRevenue);
-            const percentage = totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
+            const percentage = totalHotelRevenue > 0 ? (revenue / totalHotelRevenue) * 100 : 0;
             return `
                 <tr>
                     <td>${item.ItemName}</td>
                     <td>${item.CategoryName}</td>
                     <td>${item.QuantitySold}</td>
-                    <td>$${revenue.toFixed(2)}</td>
+                    <td>Rs ${revenue.toFixed(2)}</td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <span>${percentage.toFixed(1)}%</span>
@@ -620,12 +645,24 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         },
 
+        createReportStoreSaleRowHTML(item) {
+            const saleTime = new Date(item.SaleTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `
+                <tr>
+                    <td>${saleTime}</td>
+                    <td>${item.CategoryName}</td>
+                    <td>${item.ItemDescription || 'N/A'}</td>
+                    <td>Rs ${parseFloat(item.TotalAmount).toFixed(2)}</td>
+                </tr>
+            `;
+        },
+
         createReportStaffRowHTML(item) {
             return `
                 <tr>
                     <td>${item.FirstName} ${item.LastName}</td>
                     <td>${item.OrderCount}</td>
-                    <td>$${parseFloat(item.TotalRevenue).toFixed(2)}</td>
+                    <td>Rs ${parseFloat(item.TotalRevenue).toFixed(2)}</td>
                 </tr>
             `;
         },
@@ -643,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="item-name">${item.ItemName}</div>
                             <div class="item-qty">Quantity: ${item.Quantity}</div>
                         </div>
-                        <div class="item-subtotal">$${parseFloat(item.Subtotal).toFixed(2)}</div>
+                        <div class="item-subtotal">Rs ${parseFloat(item.Subtotal).toFixed(2)}</div>
                     </div>
                 `;
                 if (item.SpecialInstructions) {
