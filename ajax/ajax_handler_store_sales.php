@@ -2,6 +2,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Assuming config.php is in the parent directory
 require_once '../config.php';
 
 header('Content-Type: application/json');
@@ -11,17 +12,38 @@ $response = ['success' => false, 'message' => 'Invalid action specified.'];
 
 switch ($action) {
     case 'fetchStoreItems':
-        $sql = "SELECT StoreItemID, Name, Price, ImageUrl, CategoryID FROM store_items WHERE IsAvailable = TRUE ORDER BY Name";
+        // --- MODIFIED SQL QUERY ---
+        // This query now JOINS store_items with store_item_categories
+        // to fetch the CategoryName for each item.
+        $sql = "
+            SELECT 
+                si.StoreItemID, 
+                si.Name, 
+                si.Price, 
+                si.ImageUrl, 
+                si.CategoryID,
+                sc.CategoryName
+            FROM 
+                store_items si
+            JOIN 
+                store_item_categories sc ON si.CategoryID = sc.CategoryID
+            WHERE 
+                si.IsAvailable = TRUE 
+            ORDER BY 
+                sc.CategoryName, si.Name";
+        
         $result = $conn->query($sql);
         $items = [];
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                // Ensure the image URL is correctly formed
-                $row['ImageUrl'] = !empty($row['ImageUrl']) ? '/hotel' . $row['ImageUrl'] : 'https://via.placeholder.com/300/e5e7eb/6b7280?text=No+Image';
+                // Ensure the image URL is correctly formed and has a fallback
+                $row['ImageUrl'] = !empty($row['ImageUrl']) ? '/hotel' . $row['ImageUrl'] : 'https://placehold.co/300x300/e5e7eb/6b7280?text=No+Image';
                 $items[] = $row;
             }
+            $response = ['success' => true, 'data' => $items];
+        } else {
+            $response = ['success' => false, 'message' => 'Failed to fetch store items: ' . $conn->error];
         }
-        $response = ['success' => true, 'data' => $items];
         break;
 
     case 'fetchAllSales':
