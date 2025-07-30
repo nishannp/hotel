@@ -112,12 +112,16 @@ function isActive($page) {
             </li>
             <!-- NEW/UPDATED LINKS END HERE -->
 
-            <!--
+         
   <li>
                 <a href="ingredients.php" class="<?php echo isActive('ingredients.php'); ?>">
                     <i class="fa-solid fa-seedling"></i> Ingredients
                 </a>
             </li>
+
+
+               <!--
+            
             <li>
                 <a href="suppliers.php" class="<?php echo isActive('suppliers.php'); ?>">
                     <i class="fa-solid fa-truck-field"></i> Suppliers
