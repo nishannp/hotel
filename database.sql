@@ -224,3 +224,121 @@ ALTER TABLE `staff`
       `CreatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (`StaffID`) REFERENCES `staff`(`StaffID`) ON DELETE CASCADE
  );
+
+
+ CREATE TABLE `inventory` (
+  `IngredientID` int(11) NOT NULL,
+  `QuantityInStock` decimal(10,3) NOT NULL DEFAULT 0.000,
+  `LastRestockDate` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `SupplierInfo` text DEFAULT NULL,
+  `ReorderLevel` decimal(10,3) NOT NULL DEFAULT 5.000 COMMENT 'Threshold to trigger a low stock alert.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+--
+ALTER TABLE `inventory`
+  ADD PRIMARY KEY (`IngredientID`);
+ALTER TABLE `inventory`
+  ADD CONSTRAINT `inventory_ibfk_1` FOREIGN KEY (`IngredientID`) REFERENCES `ingredients` (`IngredientID`) ON DELETE CASCADE;
+
+
+
+DELIMITER $$
+CREATE TRIGGER `after_inventory_update` AFTER UPDATE ON `inventory` FOR EACH ROW BEGIN
+    -- Check if the new quantity has fallen below the reorder level
+    IF NEW.QuantityInStock < NEW.ReorderLevel THEN
+        -- To avoid duplicate alerts, check if a 'Pending' alert for this ingredient already exists
+        IF NOT EXISTS (SELECT 1 FROM low_stock_alerts WHERE IngredientID = NEW.IngredientID AND Status = 'Pending') THEN
+            INSERT INTO low_stock_alerts (IngredientID, QuantityAtAlert, ReorderLevelAtAlert)
+            VALUES (NEW.IngredientID, NEW.QuantityInStock, NEW.ReorderLevel);
+        END IF;
+    END IF;
+END
+$$
+DELIMITER ;
+
+
+
+
+CREATE TABLE `low_stock_alerts` (
+  `AlertID` int(11) NOT NULL,
+  `IngredientID` int(11) NOT NULL,
+  `AlertTime` timestamp NOT NULL DEFAULT current_timestamp(),
+  `QuantityAtAlert` decimal(10,3) NOT NULL,
+  `ReorderLevelAtAlert` decimal(10,3) NOT NULL,
+  `Status` enum('Pending','Acknowledged','Ordered') DEFAULT 'Pending',
+  `AcknowledgedByStaffID` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+
+DELIMITER $$
+CREATE TRIGGER `after_order_detail_delete` AFTER DELETE ON `order_details` FOR EACH ROW BEGIN
+    -- Loop through ingredients and restock inventory
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE ing_id INT;
+    DECLARE qty_needed DECIMAL(10, 3);
+    DECLARE cur_ingredients CURSOR FOR
+        SELECT IngredientID, QuantityRequired FROM menu_item_ingredients WHERE MenuItemID = OLD.MenuItemID;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur_ingredients;
+    read_loop: LOOP
+        FETCH cur_ingredients INTO ing_id, qty_needed;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        -- Increment inventory (restock)
+        UPDATE inventory SET QuantityInStock = QuantityInStock + (qty_needed * OLD.Quantity) WHERE IngredientID = ing_id;
+    END LOOP;
+    CLOSE cur_ingredients;
+
+    -- Update the total amount in the main Orders table
+    UPDATE orders SET TotalAmount = TotalAmount - OLD.Subtotal WHERE OrderID = OLD.OrderID;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `after_order_detail_insert` AFTER INSERT ON `order_details` FOR EACH ROW BEGIN
+    -- Loop through ingredients for the ordered item and check/decrement stock
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE ing_id INT;
+    DECLARE qty_needed DECIMAL(10, 3);
+    DECLARE current_stock DECIMAL(10, 3);
+    DECLARE item_name VARCHAR(100);
+    DECLARE ing_name VARCHAR(100);
+    DECLARE error_message VARCHAR(255);
+    DECLARE cur_ingredients CURSOR FOR
+        SELECT mi.IngredientID, i.Name, mi.QuantityRequired
+        FROM menu_item_ingredients mi
+        JOIN ingredients i ON mi.IngredientID = i.IngredientID
+        WHERE mi.MenuItemID = NEW.MenuItemID;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Update table status to Occupied
+    UPDATE restaurant_tables SET Status = 'Occupied' WHERE TableID = (SELECT TableID FROM orders WHERE OrderID = NEW.OrderID);
+
+    OPEN cur_ingredients;
+    read_loop: LOOP
+        FETCH cur_ingredients INTO ing_id, ing_name, qty_needed;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        SELECT QuantityInStock INTO current_stock FROM inventory WHERE IngredientID = ing_id;
+
+        -- Check if there is enough stock
+        IF current_stock < (qty_needed * NEW.Quantity) THEN
+            SELECT Name INTO item_name FROM menu_items WHERE MenuItemID = NEW.MenuItemID;
+            SET error_message = CONCAT('Not enough stock for ingredient: ', ing_name, ' to make item: ', item_name);
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_message;
+        END IF;
+
+        -- Decrement inventory
+        UPDATE inventory SET QuantityInStock = QuantityInStock - (qty_needed * NEW.Quantity) WHERE IngredientID = ing_id;
+    END LOOP;
+    CLOSE cur_ingredients;
+
+    -- Update the total amount in the main Orders table
+    UPDATE orders SET TotalAmount = TotalAmount + NEW.Subtotal WHERE OrderID = NEW.OrderID;
+END
+$$
+DELIMITER ;
