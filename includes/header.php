@@ -214,6 +214,11 @@ body {
                     <i class="fa-solid fa-credit-card"></i> Payments
                 </a>
             </li>
+            <li>
+                <a href="expenses.php" class="<?php echo isActive('expenses.php'); ?>">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Expenses
+                </a>
+            </li>
 
             <li>
                 <a href="customers.php" class="<?php echo isActive('customers.php'); ?>">
@@ -281,6 +286,11 @@ body {
              <li>
                 <a href="staff.php" class="<?php echo isActive('staff.php'); ?>">
                     <i class="fa-solid fa-user-tie"></i> Staff
+                </a>
+            </li>
+            <li>
+                <a href="admins.php" class="<?php echo isActive('admins.php'); ?>">
+                    <i class="fa-solid fa-user-shield"></i> Manage Admins
                 </a>
             </li>
              <li>

@@ -424,3 +424,65 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+
+
+
+
+
+-- Tables to record expense of hotel --
+
+CREATE TABLE IF NOT EXISTS `business_units` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(50) NOT NULL COMMENT 'e.g., Hotel, Store',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC)
+) ENGINE=InnoDB COMMENT='Stores the core business entities.';
+
+
+INSERT INTO `business_units` (`name`) VALUES
+('Hotel'),
+('Store');
+
+-- -----------------------------------------------------
+-- Table `expense_categories` (Simplified)
+-- Used to classify expenses for reporting.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expense_categories` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(100) NOT NULL COMMENT 'e.g., Utilities, Salaries, Inventory',
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC)
+) ENGINE=InnoDB COMMENT='Categories for classifying expenses.';
+
+
+-- -----------------------------------------------------
+-- Table `expenses` (Final Recommended Version)
+-- This central table records each expense transaction.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expenses` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `business_unit_id` INT UNSIGNED NOT NULL,
+  `category_id` INT UNSIGNED NOT NULL,
+  `description` VARCHAR(255) NOT NULL COMMENT 'A brief description, e.g., "November Electricity Bill"',
+  `amount` DECIMAL(10, 2) NOT NULL COMMENT 'The total cost of the expense.',
+  `quantity` DECIMAL(10, 2) NULL COMMENT 'Optional: The quantity of items, if applicable.',
+  `expense_date` DATE NOT NULL COMMENT 'Crucial for accurate reporting: The date the expense was incurred.',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'The date the record was entered into the system.',
+  PRIMARY KEY (`id`),
+  INDEX `fk_expenses_business_unit_idx` (`business_unit_id` ASC),
+  INDEX `fk_expenses_category_idx` (`category_id` ASC),
+  INDEX `idx_expense_date` (`expense_date` ASC),
+  CONSTRAINT `fk_expenses_business_unit`
+    FOREIGN KEY (`business_unit_id`)
+    REFERENCES `business_units` (`id`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_expenses_category`
+    FOREIGN KEY (`category_id`)
+    REFERENCES `expense_categories` (`id`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE
+) ENGINE=InnoDB COMMENT='Transactional table for all recorded expenses.';
