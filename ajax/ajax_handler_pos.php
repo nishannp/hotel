@@ -1,9 +1,12 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 /**
  * ajax/ajax_handler_pos.php
- * * Refactored backend handler for the Point of Sale (POS) system.
- * Handles all asynchronous requests from the POS interface with improved structure and error handling.
- * * @version 4.1 - Fixed 'undefined added' bug.
+ * Refactored backend handler for the Point of Sale (POS) system with party management.
+ * Handles all asynchronous requests from the POS interface, supporting multiple parties per table.
+ * @version 5.1 - Patched for PHP 8+ compatibility.
  */
 
 // --- INITIALIZATION ---
@@ -35,7 +38,7 @@ function send_error(string $message, int $code = 400): void {
 }
 
 /**
- * Fetches complete details for a specific order, including items.
+ * Fetches complete details for a specific order, including items, party, and table info.
  * @param mysqli $conn The database connection.
  * @param int $order_id The ID of the order to fetch.
  * @return array|null The order details or null if not found.
@@ -43,8 +46,16 @@ function send_error(string $message, int $code = 400): void {
 function get_order_details(mysqli $conn, int $order_id): ?array {
     $details = [];
 
-    // Fetch main order info
-    $stmt_order = $conn->prepare("SELECT OrderID, TableID, StaffID, OrderTime, OrderStatus, TotalAmount FROM orders WHERE OrderID = ?");
+    // Fetch main order info along with party and table details
+    $stmt_order = $conn->prepare("
+        SELECT o.OrderID, o.StaffID, o.OrderTime, o.OrderStatus, o.TotalAmount,
+               cp.PartyID, cp.PartyIdentifier,
+               rt.TableID, rt.TableNumber
+        FROM orders o
+        JOIN customer_parties cp ON o.PartyID = cp.PartyID
+        JOIN restaurant_tables rt ON cp.TableID = rt.TableID
+        WHERE o.OrderID = ?
+    ");
     $stmt_order->bind_param("i", $order_id);
     $stmt_order->execute();
     $order_result = $stmt_order->get_result();
@@ -115,16 +126,34 @@ try {
         // --- READ-ONLY ACTIONS (GET) ---
         case 'getInitialData':
             $response_data = [];
-            $tables_result = $conn->query("SELECT TableID, TableNumber FROM restaurant_tables ORDER BY TableNumber");
-            $response_data['tables'] = $tables_result->fetch_all(MYSQLI_ASSOC);
             
-            $active_orders_result = $conn->query("SELECT OrderID, TableID FROM orders WHERE OrderStatus = 'Pending'");
-            $active_orders = [];
-            while($row = $active_orders_result->fetch_assoc()) {
-                $active_orders[$row['TableID']] = $row;
-            }
-            $response_data['active_orders'] = $active_orders;
+            // 1. Fetch all tables with their status
+            $tables_result = $conn->query("SELECT TableID, TableNumber, Status FROM restaurant_tables ORDER BY TableNumber");
+            $tables = $tables_result->fetch_all(MYSQLI_ASSOC);
 
+            // 2. Fetch all active parties and their pending orders
+            $parties_result = $conn->query("
+                SELECT cp.PartyID, cp.TableID, cp.PartyIdentifier, o.OrderID
+                FROM customer_parties cp
+                JOIN orders o ON cp.PartyID = o.PartyID
+                WHERE cp.PartyStatus != 'Departed' AND o.OrderStatus = 'Pending'
+            ");
+            $active_parties = $parties_result->fetch_all(MYSQLI_ASSOC);
+
+            // 3. Structure data for the frontend
+            $tables_data = [];
+            foreach ($tables as $table) {
+                $tables_data[$table['TableID']] = $table;
+                $tables_data[$table['TableID']]['parties'] = [];
+            }
+            foreach ($active_parties as $party) {
+                if (isset($tables_data[$party['TableID']])) {
+                    $tables_data[$party['TableID']]['parties'][] = $party;
+                }
+            }
+            $response_data['tables_data'] = array_values($tables_data); // Convert to array for JS
+
+            // 4. Fetch other necessary data
             $category_result = $conn->query("SELECT CategoryID, CategoryName FROM menu_categories ORDER BY CategoryName");
             $response_data['categories'] = $category_result->fetch_all(MYSQLI_ASSOC);
             
@@ -135,6 +164,26 @@ try {
             $response_data['staff'] = $staff_result->fetch_all(MYSQLI_ASSOC);
 
             send_success(['data' => $response_data]);
+            break;
+
+        case 'getPartiesForTable':
+            $table_id = filter_input(INPUT_GET, 'table_id', FILTER_VALIDATE_INT);
+            if (!$table_id) send_error('Invalid Table ID.');
+
+            $stmt = $conn->prepare("
+                SELECT cp.PartyID, cp.PartyIdentifier, o.OrderID
+                FROM customer_parties cp
+                JOIN orders o ON cp.PartyID = o.PartyID
+                WHERE cp.TableID = ? AND cp.PartyStatus != 'Departed' AND o.OrderStatus = 'Pending'
+                ORDER BY cp.SeatingTime
+            ");
+            $stmt->bind_param("i", $table_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $parties = $result->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+            
+            send_success(['data' => $parties]);
             break;
 
         case 'getOrderDetails':
@@ -156,29 +205,41 @@ try {
             send_success(['message' => 'Session set.']);
             break;
 
-        case 'createOrder':
+        case 'createPartyAndOrder':
             $table_id = filter_input(INPUT_POST, 'table_id', FILTER_VALIDATE_INT);
             $staff_id = filter_input(INPUT_POST, 'staff_id', FILTER_VALIDATE_INT);
 
             if (!$table_id || !$staff_id) send_error('Table ID and Staff ID are required.');
 
-            $stmt_check = $conn->prepare("SELECT OrderID FROM orders WHERE TableID = ? AND OrderStatus = 'Pending'");
-            $stmt_check->bind_param("i", $table_id);
-            $stmt_check->execute();
-            if ($stmt_check->get_result()->num_rows > 0) {
-                send_error("Table #$table_id already has an active order.", 409);
-            }
-            $stmt_check->close();
+            // Determine party identifier (e.g., Party A, Party B)
+            $stmt_count = $conn->prepare("SELECT COUNT(*) FROM customer_parties WHERE TableID = ?");
+            $stmt_count->bind_param("i", $table_id);
+            $stmt_count->execute();
+            $count = $stmt_count->get_result()->fetch_row()[0];
+            $party_identifier = 'Party ' . chr(65 + $count);
+            $stmt_count->close();
 
-            $stmt = $conn->prepare("INSERT INTO orders (TableID, StaffID, OrderStatus) VALUES (?, ?, 'Pending')");
-            $stmt->bind_param("ii", $table_id, $staff_id);
-            if (!$stmt->execute()) throw new Exception("Failed to create order: " . $stmt->error);
-            
-            $new_order_id = $stmt->insert_id;
-            $stmt->close();
+            // Create the new party
+            $num_guests = rand(1, 6); // Automatic number of guests
+            $stmt_party = $conn->prepare("INSERT INTO customer_parties (TableID, NumberOfGuests, PartyIdentifier, PartyStatus) VALUES (?, ?, ?, 'Ordering')");
+            $stmt_party->bind_param("iis", $table_id, $num_guests, $party_identifier);
+            if (!$stmt_party->execute()) throw new Exception("Failed to create party: " . $stmt_party->error);
+            $new_party_id = $stmt_party->insert_id;
+            $stmt_party->close();
+
+            // Create an order for the new party
+            $stmt_order = $conn->prepare("INSERT INTO orders (PartyID, StaffID, OrderStatus) VALUES (?, ?, 'Pending')");
+            $stmt_order->bind_param("ii", $new_party_id, $staff_id);
+            if (!$stmt_order->execute()) throw new Exception("Failed to create order: " . $stmt_order->error);
+            $new_order_id = $stmt_order->insert_id;
+            $stmt_order->close();
             
             $conn->commit();
-            send_success(['order_id' => $new_order_id, 'message' => "Order #$new_order_id created!"]);
+            send_success([
+                'order_id' => $new_order_id, 
+                'party_id' => $new_party_id,
+                'message' => "{$party_identifier} created for table!"
+            ]);
             break;
 
         case 'addItemToOrder':
@@ -194,7 +255,7 @@ try {
             if ($item_result->num_rows === 0) send_error('Menu item not found or is unavailable.');
             $item_data = $item_result->fetch_assoc();
             $price = $item_data['Price'];
-            $item_name = $item_data['Name']; // <-- BUG FIX: Capture item name
+            $item_name = $item_data['Name'];
             $stmt_item->close();
 
             $stmt_check = $conn->prepare("SELECT OrderDetailID, Quantity FROM order_details WHERE OrderID = ? AND MenuItemID = ?");
@@ -222,7 +283,6 @@ try {
             
             $conn->commit();
             
-            // BUG FIX: Add the item name to the response payload for the toast message
             $response_data = get_order_details($conn, $order_id);
             $response_data['item_name'] = $item_name; 
             send_success(['data' => $response_data]);
@@ -266,13 +326,17 @@ try {
 
         case 'updateOrderStatus':
             $order_id = filter_input(INPUT_POST, 'order_id', FILTER_VALIDATE_INT);
-            $status = filter_input(INPUT_POST, 'status', FILTER_SANITIZE_STRING);
+            // FIX: Replace deprecated FILTER_SANITIZE_STRING
+            $raw_status = $_POST['status'] ?? '';
+            $status = htmlspecialchars($raw_status, ENT_QUOTES, 'UTF-8');
+            
             $valid_statuses = ['Completed', 'Cancelled'];
 
             if (!$order_id || !in_array($status, $valid_statuses)) {
                 send_error('Invalid Order ID or status provided.');
             }
 
+            // Update order status
             $stmt = $conn->prepare("UPDATE orders SET OrderStatus = ? WHERE OrderID = ? AND OrderStatus = 'Pending'");
             $stmt->bind_param("si", $status, $order_id);
             if (!$stmt->execute()) throw new Exception("Failed to update order status: " . $stmt->error);
@@ -280,8 +344,18 @@ try {
             if ($stmt->affected_rows === 0) {
                 throw new Exception("Order #$order_id not found or already processed.");
             }
-
             $stmt->close();
+
+            // Update corresponding party status
+            $party_status = ($status === 'Completed') ? 'Billing' : 'Departed';
+            $stmt_party = $conn->prepare("
+                UPDATE customer_parties SET PartyStatus = ? 
+                WHERE PartyID = (SELECT PartyID FROM orders WHERE OrderID = ?)
+            ");
+            $stmt_party->bind_param("si", $party_status, $order_id);
+            if (!$stmt_party->execute()) throw new Exception("Failed to update party status: " . $stmt_party->error);
+            $stmt_party->close();
+
             $conn->commit();
             send_success(['message' => "Order #{$order_id} status updated to {$status}."]);
             break;
@@ -291,9 +365,10 @@ try {
             break;
     }
 } catch (Exception $e) {
-    if ($conn->in_transaction) {
-        $conn->rollback();
-    }
+    // FIX: Removed the check for $conn->in_transaction as it's not available in all PHP versions.
+    // Calling rollback() is safe even if a transaction is not active.
+    $conn->rollback();
+    
     error_log("POS System Error: " . $e->getMessage());
     send_error('A server error occurred. Please try again.', 500);
 }

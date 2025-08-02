@@ -111,7 +111,7 @@ $(document).ready(function() {
                                 <span style="color:var(--primary-color);">${parseFloat(order.TotalAmount).toFixed(2)}</span>
                             </div>
                             <div class="order-card-body">
-                                Table ${order.TableNumber} • ${new Date(order.OrderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                Table ${order.TableNumber} &bull; ${order.PartyIdentifier} &bull; ${new Date(order.OrderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                         </div>
                     `);
@@ -142,7 +142,7 @@ $(document).ready(function() {
         paymentForm.show();
         paymentForm[0].reset();
 
-        terminalHeader.text(`Processing Payment for Order #${orderId}`);
+        terminalHeader.text(`Processing Payment for Order #${orderId} (Table ${selectedOrder.TableNumber} - ${selectedOrder.PartyIdentifier})`);
         $('#orderIdInput').val(orderId);
         $('#amountPaid').val(parseFloat(selectedOrder.TotalAmount).toFixed(2));
 

@@ -43,6 +43,145 @@ function isActive($page) {
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
 
+    <style>
+        /* css/admin_style.css (Modern Light Theme) */
+
+/* --- Google Font & Basic Reset --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #8b5cf6; /* A vibrant purple for accents */
+    --primary-hover-color: #f3f4f6;  /* Very light grey for hover */
+    --text-dark-color: #111827;     /* The main dark text color */
+    --text-on-primary: #ffffff;     /* White text for on top of the primary color */
+    --text-muted-color: #6b7280;    /* A muted grey for secondary text */
+    --sidebar-bg: #ffffff;          /* Clean white sidebar */
+    --page-bg: #f9fafb;             /* A very light grey for the main content area */
+    --border-color: #e5e7eb;        /* A light, subtle border color */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--page-bg);
+    color: var(--text-dark-color); /* Default text is dark */
+}
+
+/* --- Modern Light Sidebar --- */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 260px;
+    height: 100%;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    z-index: 100;
+    border-right: 1px solid var(--border-color);
+}
+
+.sidebar-header {
+    padding: 24px 28px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h2 {
+    font-weight: 600;
+    font-size: 1.6rem;
+    color: var(--text-dark-color); /* Header text is dark */
+}
+
+.sidebar-nav {
+    flex-grow: 1;
+    list-style: none;
+    padding: 16px 0;
+}
+
+.sidebar-nav li {
+    margin: 0 16px;
+}
+
+.sidebar-nav li a {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    color: var(--text-muted-color); /* Muted color for inactive links */
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+.sidebar-nav li a:hover {
+    background: var(--primary-hover-color);
+    color: var(--text-dark-color); /* Darken text on hover */
+}
+
+/* --- Active Link Style --- */
+.sidebar-nav li a.active {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    font-weight: 600;
+    box-shadow: 0 4px 14px -4px var(--primary-color); /* Add a subtle glow */
+}
+
+.sidebar-nav li a i {
+    font-size: 1.1rem;
+    margin-right: 18px;
+    width: 22px;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Keep icon color consistent with text on hover/active */
+.sidebar-nav li a:hover i,
+.sidebar-nav li a.active i {
+    color: inherit;
+}
+
+.logout-link {
+    margin-top: auto;
+    padding-bottom: 16px;
+}
+
+/* --- Main Content Area --- */
+.main-content {
+    margin-left: 260px;
+    padding: 30px;
+    transition: margin-left 0.3s ease;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.content-header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--text-dark-color);
+}
+
+.user-info {
+    font-size: 1rem;
+    color: var(--text-muted-color);
+}
+
+    </style>
 </head>
 <body>
 

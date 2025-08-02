@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async fetchOrderHistory(page) {
             const { searchTerm, status, startDate, endDate } = this.state.filters;
-            const url = `ajax/ajax_handler_orders.php?action=fetchOrderHistory&page=${page}&searchTerm=${searchTerm}&status=${status}&startDate=${startDate}&endDate=${endDate}`;
+            const url = `ajax/ajax_handler_orders.php?action=fetchOrderHistory&page=${page}&searchTerm=${encodeURIComponent(searchTerm)}&status=${status}&startDate=${startDate}&endDate=${endDate}`;
             try {
                 const response = await fetch(url);
                 const data = await response.json();
@@ -272,9 +272,15 @@ document.addEventListener('DOMContentLoaded', function() {
             let html = `<div class="pagination-info">Page ${currentPage} of ${totalPages}</div>`;
             html += `<div class="pagination-controls">`;
             html += `<button data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Prev</button>`;
-            // Simple pagination links for brevity, can be expanded with ellipses
+            // Simple pagination links for brevity
             for (let i = 1; i <= totalPages; i++) {
-                html += `<button data-page="${i}" class="${i === currentPage ? 'active' : ''}">${i}</button>`;
+                if (i === currentPage) {
+                    html += `<button data-page="${i}" class="active">${i}</button>`;
+                } else if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    html += `<button data-page="${i}">${i}</button>`;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    html += `<span>...</span>`;
+                }
             }
             html += `<button data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}>Next &raquo;</button>`;
             html += `</div>`;
@@ -289,27 +295,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="status-badge status-${order.OrderStatus}">${order.OrderStatus}</div>
                     </div>
                     <div class="card-main">
-                        Table: <strong>${order.TableNumber}</strong><br>
+                        Table: <strong>${order.TableNumber} (${this.escapeHTML(order.PartyIdentifier)})</strong><br>
                         Staff: <strong>${this.escapeHTML(order.FirstName)}</strong>
                     </div>
                     <div class="card-footer">
                         <span class="material-icons-outlined" style="font-size: 1em; vertical-align: middle;">schedule</span>
-                        ${new Date(order.OrderTime).toLocaleTimeString()}
+                        ${new Date(order.OrderTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                     </div>
                 </div>
             `;
         },
 
         createHistoryOrderItem(order) {
-            const defaultImg = 'https://via.placeholder.com/50/e5e7eb/6b7280?text=?';
             const detailsHtml = order.Details.map(d => `
                 <div class="detail-item">
-                    <img src="${d.ItemImageUrl || defaultImg}" alt="${this.escapeHTML(d.ItemName)}" class="detail-item-img">
+                    ${d.ItemImageUrl ? `<img src="${d.ItemImageUrl}" alt="${this.escapeHTML(d.ItemName)}" class="detail-item-img">` : `<div class="detail-item-img"><span class="material-icons-outlined">ramen_dining</span></div>`}
                     <div class="detail-item-info">
                         <div class="detail-item-name">${this.escapeHTML(d.ItemName)}</div>
-                        <div class="detail-item-qty">${d.Quantity} x $${(d.Subtotal / d.Quantity).toFixed(2)}</div>
+                        <div class="detail-item-qty">${d.Quantity} x Rs ${parseFloat(d.Subtotal / d.Quantity).toFixed(2)}</div>
                     </div>
-                    <div class="detail-item-subtotal">$${parseFloat(d.Subtotal).toFixed(2)}</div>
+                    <div class="detail-item-subtotal">Rs ${parseFloat(d.Subtotal).toFixed(2)}</div>
                 </div>
             `).join('');
 
@@ -317,13 +322,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="order-item">
                     <div class="order-summary">
                         <div><span class="label">Order ID</span><span class="value order-id">#${order.OrderID}</span></div>
-                        <div><span class="label">Table / Staff</span><span class="value">${order.TableNumber} / ${this.escapeHTML(order.FirstName)}</span></div>
+                        <div><span class="label">Table / Party</span><span class="value">${order.TableNumber} / ${this.escapeHTML(order.PartyIdentifier)}</span></div>
                         <div><span class="label">Date & Time</span><span class="value">${new Date(order.OrderTime).toLocaleString()}</span></div>
                         <div><span class="label">Status</span><span class="value"><span class="status-badge-history status-${order.OrderStatus}">${order.OrderStatus}</span></span></div>
-                        <div><span class="label">Total</span><span class="value">$${parseFloat(order.TotalAmount).toFixed(2)}</span></div>
+                        <div><span class="label">Total</span><span class="value">Rs ${parseFloat(order.TotalAmount).toFixed(2)}</span></div>
                         <div class="expand-icon"><span class="material-icons-outlined">expand_more</span></div>
                     </div>
-                    <div class="order-details"><div class="details-content"><h4>Order Details</h4>${detailsHtml}</div></div>
+                    <div class="order-details"><div class="details-content"><h4>Order Details</h4>${detailsHtml || '<p>No item details available.</p>'}</div></div>
                 </div>
             `;
         },

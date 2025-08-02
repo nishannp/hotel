@@ -342,3 +342,85 @@ CREATE TRIGGER `after_order_detail_insert` AFTER INSERT ON `order_details` FOR E
 END
 $$
 DELIMITER ;
+
+
+
+
+
+
+
+CREATE TABLE customer_parties (
+    PartyID INT PRIMARY KEY AUTO_INCREMENT,
+    TableID INT NOT NULL,
+    NumberOfGuests INT NOT NULL DEFAULT 1,
+    PartyIdentifier VARCHAR(50) COMMENT 'Optional friendly name for staff, e.g., "Window Couple", "Smith Party"',
+    SeatingTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PartyStatus ENUM('Seated', 'Ordering', 'Billing', 'Departed') DEFAULT 'Seated',
+    FOREIGN KEY (TableID) REFERENCES restaurant_tables(TableID)
+);
+
+
+
+-- First, drop the old foreign key constraint if it exists
+ALTER TABLE orders DROP FOREIGN KEY `orders_ibfk_2`; -- Note: The constraint name might be different. Check with SHOW CREATE TABLE orders;
+
+-- Then, drop the old column
+ALTER TABLE orders DROP COLUMN TableID;
+
+-- Finally, add the new column to link to the party
+ALTER TABLE orders ADD COLUMN PartyID INT NOT NULL AFTER CustomerID;
+
+-- Add the new foreign key constraint
+ALTER TABLE orders
+ADD CONSTRAINT fk_orders_party
+FOREIGN KEY (PartyID) REFERENCES customer_parties(PartyID);
+
+-- Modify the ENUM to include a new status
+ALTER TABLE restaurant_tables
+MODIFY COLUMN Status ENUM('Available', 'Partially Occupied', 'Full', 'Reserved') DEFAULT 'Available';
+
+
+-- This trigger no longer needs to update the table status.
+-- The party's existence is what makes the table occupied.
+DELIMITER $$
+CREATE TRIGGER after_order_detail_insert
+AFTER INSERT ON order_details
+FOR EACH ROW
+BEGIN
+    -- Update the total amount in the main Orders table
+    UPDATE orders SET TotalAmount = TotalAmount + NEW.Subtotal WHERE OrderID = NEW.OrderID;
+END$$
+DELIMITER ;
+
+
+DELIMITER $$
+
+-- This trigger updates the table status when a new party is seated.
+CREATE TRIGGER after_party_insert
+AFTER INSERT ON customer_parties
+FOR EACH ROW
+BEGIN
+    UPDATE restaurant_tables SET Status = 'Partially Occupied' WHERE TableID = NEW.TableID;
+END$$
+
+
+-- This trigger updates the table status when a party's status changes (e.g., to 'Departed').
+CREATE TRIGGER after_party_update
+AFTER UPDATE ON customer_parties
+FOR EACH ROW
+BEGIN
+    DECLARE active_parties_count INT;
+    -- If a party has departed, check if any other parties are left at the table.
+    IF NEW.PartyStatus = 'Departed' THEN
+        SELECT COUNT(*) INTO active_parties_count
+        FROM customer_parties
+        WHERE TableID = NEW.TableID AND PartyStatus != 'Departed';
+
+        -- If no active parties are left, the table is now available.
+        IF active_parties_count = 0 THEN
+            UPDATE restaurant_tables SET Status = 'Available' WHERE TableID = NEW.TableID;
+        END IF;
+    END IF;
+END$$
+
+DELIMITER ;

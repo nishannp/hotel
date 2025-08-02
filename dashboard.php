@@ -426,7 +426,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const totalTables = Object.values(tables).reduce((a, b) => a + b, 0);
-            this.elements.kpiTablesSummary.innerHTML = `<strong>${tables.Occupied || 0}</strong> Occupied / <strong>${totalTables}</strong> Total`;
+            const occupiedCount = (tables['Partially Occupied'] || 0) + (tables['Full'] || 0);
+            this.elements.kpiTablesSummary.innerHTML = `<strong>${occupiedCount}</strong> Occupied / <strong>${totalTables}</strong> Total`;
         },
 
         renderChart(canvas, type, data, options) {
@@ -438,10 +439,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         renderTableStatusChart(statuses) {
             const data = {
-                labels: ['Available', 'Occupied', 'Reserved'],
+                labels: ['Available', 'Partially Occupied', 'Full', 'Reserved'],
                 datasets: [{
-                    data: [statuses.Available, statuses.Occupied, statuses.Reserved],
-                    backgroundColor: ['var(--success-color)', 'var(--danger-color)', 'var(--warning-color)'],
+                    data: [statuses.Available, statuses['Partially Occupied'], statuses.Full, statuses.Reserved],
+                    backgroundColor: ['var(--success-color)', 'var(--warning-color)', 'var(--danger-color)', 'var(--info-color)'],
                     borderColor: 'var(--bg-content)',
                     borderWidth: 3,
                 }]
@@ -576,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return `
                 <div class="list-item">
                     <div class="item-info">
-                        <div class="item-name">Order #${item.OrderID} (Table ${item.TableNumber})</div>
+                        <div class="item-name">Order #${item.OrderID} (Table ${item.TableNumber} - ${item.PartyIdentifier})</div>
                         <div class="item-subtext">Rs ${parseFloat(item.TotalAmount).toFixed(2)}</div>
                     </div>
                     <div class="item-trailing">
@@ -618,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <tr class="clickable" data-order-id="${item.OrderID}">
                     <td>#${item.OrderID}</td>
                     <td>${orderTime}</td>
-                    <td>${item.TableNumber}</td>
+                    <td>${item.TableNumber} (${item.PartyIdentifier})</td>
                     <td>${customerName}</td>
                     <td>${item.StaffFirstName} ${item.StaffLastName}</td>
                     <td>Rs ${parseFloat(item.TotalAmount).toFixed(2)}</td>

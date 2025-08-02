@@ -1,6 +1,5 @@
 <?php
-
-// ajax/ajax_handler_tables.php
+// ajax/ajax_handler_tables.php - Updated for Party System
 require_once '../config.php';
 
 header('Content-Type: application/json');
@@ -10,14 +9,29 @@ $response = ['success' => false, 'message' => 'Invalid action.'];
 
 switch ($action) {
     case 'fetchAll':
-        // The Status column is important for display
-        $sql = "SELECT TableID, TableNumber, Capacity, Status FROM restaurant_tables ORDER BY TableNumber";
-        $result = $conn->query($sql);
+        // Fetch all tables
+        $sql_tables = "SELECT TableID, TableNumber, Capacity, Status FROM restaurant_tables ORDER BY TableNumber";
+        $result_tables = $conn->query($sql_tables);
         $tables = [];
-        while ($row = $result->fetch_assoc()) {
-            $tables[] = $row;
+        while ($row = $result_tables->fetch_assoc()) {
+            $tables[$row['TableID']] = $row;
+            $tables[$row['TableID']]['Parties'] = []; // Initialize parties array
         }
-        $response = ['success' => true, 'data' => $tables];
+
+        // Fetch all active parties and group them by TableID
+        $sql_parties = "SELECT TableID, PartyIdentifier, NumberOfGuests, PartyStatus 
+                        FROM customer_parties 
+                        WHERE PartyStatus != 'Departed'";
+        $result_parties = $conn->query($sql_parties);
+        if ($result_parties) {
+            while ($party_row = $result_parties->fetch_assoc()) {
+                if (isset($tables[$party_row['TableID']])) {
+                    $tables[$party_row['TableID']]['Parties'][] = $party_row;
+                }
+            }
+        }
+        
+        $response = ['success' => true, 'data' => array_values($tables)];
         break;
 
     case 'fetchSingle':
@@ -35,9 +49,6 @@ switch ($action) {
         $id = $_POST['table_id'] ?? null;
         $number = $_POST['table_number'];
         $capacity = $_POST['capacity'];
-
-        // Note: We don't manually set the 'Status'. It defaults to 'Available' on creation
-        // and is managed by triggers during operations.
 
         if (empty($id)) { // ADD
             $sql = "INSERT INTO restaurant_tables (TableNumber, Capacity) VALUES (?, ?)";
@@ -71,7 +82,7 @@ switch ($action) {
             $response = ['success' => true, 'message' => 'Table deleted successfully.'];
         } else {
             if($conn->errno == 1451) {
-                 $response['message'] = 'Cannot delete this table. It is assigned to existing orders.';
+                 $response['message'] = 'Cannot delete this table. It has active or past parties associated with it.';
             } else {
                  $response['message'] = 'Error: ' . $stmt->error;
             }

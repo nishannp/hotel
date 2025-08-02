@@ -1,35 +1,33 @@
 <?php
-// ajax/ajax_handler_orders.php
+// ajax/ajax_handler_orders.php - Updated for Party System
 require_once '../config.php';
 header('Content-Type: application/json');
 
-$action = $_GET['action'] ?? 'fetchAll'; // Default action for backward compatibility if needed
+$action = $_GET['action'] ?? 'fetchAll';
 $response = ['success' => false, 'data' => []];
 
 try {
     switch ($action) {
         case 'fetchActiveOrders':
-            $sql = "SELECT o.OrderID, o.OrderTime, o.OrderStatus, t.TableNumber, s.FirstName 
+            $sql = "SELECT o.OrderID, o.OrderTime, o.OrderStatus, t.TableNumber, cp.PartyIdentifier, s.FirstName 
                     FROM orders o
-                    JOIN restaurant_tables t ON o.TableID = t.TableID
+                    JOIN customer_parties cp ON o.PartyID = cp.PartyID
+                    JOIN restaurant_tables t ON cp.TableID = t.TableID
                     JOIN staff s ON o.StaffID = s.StaffID
                     WHERE o.OrderStatus IN ('Pending', 'In-Progress')
                     ORDER BY o.OrderTime ASC";
             $result = $conn->query($sql);
-            $active_orders = [];
-            while ($row = $result->fetch_assoc()) {
-                $active_orders[] = $row;
-            }
+            $active_orders = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
             $response = ['success' => true, 'data' => $active_orders];
             break;
 
         case 'fetchOrderHistory':
             // --- Pagination & Filtering Logic ---
             $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-            $limit = 10; // Items per page
+            $limit = 10;
             $offset = ($page - 1) * $limit;
 
-            // Build WHERE clause based on filters
+            // Build WHERE clause
             $where_clauses = [];
             $params = [];
             $types = '';
@@ -41,9 +39,9 @@ try {
             }
             if (!empty($_GET['searchTerm'])) {
                 $term = '%' . $_GET['searchTerm'] . '%';
-                $where_clauses[] = '(o.OrderID LIKE ? OR t.TableNumber LIKE ? OR s.FirstName LIKE ? OR s.LastName LIKE ?)';
-                $params = array_merge($params, [$term, $term, $term, $term]);
-                $types .= 'ssss';
+                $where_clauses[] = '(o.OrderID LIKE ? OR t.TableNumber LIKE ? OR cp.PartyIdentifier LIKE ? OR s.FirstName LIKE ? OR s.LastName LIKE ?)';
+                $params = array_merge($params, [$term, $term, $term, $term, $term]);
+                $types .= 'sssss';
             }
             if (!empty($_GET['startDate']) && !empty($_GET['endDate'])) {
                 $where_clauses[] = 'o.OrderTime BETWEEN ? AND ?';
@@ -52,10 +50,15 @@ try {
                 $types .= 'ss';
             }
 
+            $base_query = "FROM orders o
+                           JOIN customer_parties cp ON o.PartyID = cp.PartyID
+                           JOIN restaurant_tables t ON cp.TableID = t.TableID
+                           JOIN staff s ON o.StaffID = s.StaffID
+                           LEFT JOIN customers c ON o.CustomerID = c.CustomerID";
             $where_sql = empty($where_clauses) ? '' : 'WHERE ' . implode(' AND ', $where_clauses);
 
-            // Get total count for pagination
-            $count_sql = "SELECT COUNT(o.OrderID) as total FROM orders o JOIN restaurant_tables t ON o.TableID = t.TableID JOIN staff s ON o.StaffID = s.StaffID $where_sql";
+            // Get total count
+            $count_sql = "SELECT COUNT(o.OrderID) as total $base_query $where_sql";
             $stmt_count = $conn->prepare($count_sql);
             if (!empty($params)) $stmt_count->bind_param($types, ...$params);
             $stmt_count->execute();
@@ -64,22 +67,16 @@ try {
             $stmt_count->close();
 
             // Get paginated order data
-            $sql_orders = "SELECT o.OrderID, o.OrderTime, o.OrderStatus, o.TotalAmount, t.TableNumber, s.FirstName, s.LastName, c.FirstName AS CustomerFirstName, c.LastName AS CustomerLastName
-                           FROM orders o
-                           JOIN restaurant_tables t ON o.TableID = t.TableID
-                           JOIN staff s ON o.StaffID = s.StaffID
-                           LEFT JOIN customers c ON o.CustomerID = c.CustomerID
+            $sql_orders = "SELECT o.OrderID, o.OrderTime, o.OrderStatus, o.TotalAmount, t.TableNumber, cp.PartyIdentifier, s.FirstName, s.LastName, c.FirstName AS CustomerFirstName, c.LastName AS CustomerLastName
+                           $base_query
                            $where_sql
                            ORDER BY o.OrderID DESC
                            LIMIT ? OFFSET ?";
             
             $stmt_orders = $conn->prepare($sql_orders);
-            $params_with_pagination = $params;
-            $params_with_pagination[] = $limit;
-            $params_with_pagination[] = $offset;
+            $params_with_pagination = array_merge($params, [$limit, $offset]);
             $types_with_pagination = $types . 'ii';
-            if (!empty($params)) $stmt_orders->bind_param($types_with_pagination, ...$params_with_pagination);
-            else $stmt_orders->bind_param('ii', $limit, $offset);
+            $stmt_orders->bind_param($types_with_pagination, ...$params_with_pagination);
             
             $stmt_orders->execute();
             $orders_result = $stmt_orders->get_result();
@@ -103,7 +100,7 @@ try {
                 $details_result = $conn->query($sql_details);
                 while ($detail_row = $details_result->fetch_assoc()) {
                     if (!empty($detail_row['ItemImageUrl'])) {
-                        $detail_row['ItemImageUrl'] = UPLOADS_URL . $detail_row['ItemImageUrl'];
+                        $detail_row['ItemImageUrl'] = UPLOADS_URL . 'menu_items/' . $detail_row['ItemImageUrl'];
                     }
                     $orders[$detail_row['OrderID']]['Details'][] = $detail_row;
                 }
