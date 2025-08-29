@@ -197,6 +197,14 @@ body {
                     <i class="fa-solid fa-gauge"></i> Dashboard
                 </a>
             </li>
+            <!--
+            <li>
+                <a href="analytics.php" class="<?php echo isActive('analytics.php'); ?>">
+                    <i class="fa-solid fa-chart-line"></i> Analytics
+                </a>
+            </li>
+
+-->
 
            <li>
                 <a href="pos.php" class="<?php echo isActive('pos.php'); ?>">

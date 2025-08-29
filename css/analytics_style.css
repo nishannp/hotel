@@ -1,0 +1,179 @@
+/* css/analytics_style.css */
+
+:root {
+    --primary-color: #367bf5;
+    --success-color: #34c38f;
+    --danger-color: #f46a6a;
+    --warning-color: #f1b44c;
+    --bg-color: #f8f8fb;
+    --card-bg: #ffffff;
+    --text-dark: #343a40;
+    --text-muted: #74788d;
+    --border-color: #eff2f7;
+    --card-shadow: 0 0.75rem 1.5rem rgba(18,38,63,.03);
+    --border-radius: 0.75rem;
+}
+
+.main-content {
+    background-color: var(--bg-color);
+}
+
+.page-header i {
+    margin-right: 10px;
+    color: var(--primary-color);
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.filter-bar label {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+.filter-bar select, .filter-bar input {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+}
+.filter-bar .btn {
+    padding: 0.5rem 1.25rem;
+}
+
+/* KPI Cards */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.kpi-card {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    position: relative;
+    overflow: hidden;
+}
+.kpi-card h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.kpi-card p {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+.kpi-card i {
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2.5rem;
+    color: var(--border-color);
+}
+.kpi-card.profit p {
+    color: var(--success-color);
+}
+
+/* Charts & Lists */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+.chart-container.card {
+    padding: 1rem;
+}
+.large-chart {
+    grid-column: 1 / 4;
+}
+.chart-container .card-header {
+    padding: 0.75rem 1.25rem;
+    background: none;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+.chart-container .card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.chart-container .card-body {
+    padding: 1rem;
+    height: 350px; /* Fixed height for charts */
+}
+
+/* Ranked List for Top Staff */
+.ranked-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+.ranked-list li {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.rank-badge {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+}
+.rank-1 { background-color: #f1b44c; }
+.rank-2 { background-color: #adb5bd; }
+.rank-3 { background-color: #cd7f32; }
+
+.staff-details .name {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+.staff-details .sales {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Toast */
+#toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 25px;
+    border-radius: var(--border-radius);
+    color: white; font-weight: 500; z-index: 2000;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.21, 1.02, 0.73, 1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+#toast.show {
+    opacity: 1;
+    transform: translate(-50%, -20px);
+}
+#toast.success { background-color: var(--success-color); }
+#toast.error { background-color: var(--danger-color); }
+
+

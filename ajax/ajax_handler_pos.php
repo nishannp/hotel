@@ -127,8 +127,8 @@ try {
         case 'getInitialData':
             $response_data = [];
             
-            // 1. Fetch all tables with their status
-            $tables_result = $conn->query("SELECT TableID, TableNumber, Status FROM restaurant_tables ORDER BY TableNumber");
+            // 1. Fetch all tables
+            $tables_result = $conn->query("SELECT TableID, TableNumber FROM restaurant_tables ORDER BY TableNumber");
             $tables = $tables_result->fetch_all(MYSQLI_ASSOC);
 
             // 2. Fetch all active parties and their pending orders
@@ -140,15 +140,18 @@ try {
             ");
             $active_parties = $parties_result->fetch_all(MYSQLI_ASSOC);
 
-            // 3. Structure data for the frontend
+            // 3. Structure data for the frontend, calculating status dynamically
             $tables_data = [];
             foreach ($tables as $table) {
                 $tables_data[$table['TableID']] = $table;
                 $tables_data[$table['TableID']]['parties'] = [];
+                $tables_data[$table['TableID']]['Status'] = 'Available'; // Default to Available
             }
+
             foreach ($active_parties as $party) {
                 if (isset($tables_data[$party['TableID']])) {
                     $tables_data[$party['TableID']]['parties'][] = $party;
+                    $tables_data[$party['TableID']]['Status'] = 'Partially Occupied'; // Set to occupied if there's a party
                 }
             }
             $response_data['tables_data'] = array_values($tables_data); // Convert to array for JS

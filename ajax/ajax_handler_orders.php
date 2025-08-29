@@ -3,11 +3,103 @@
 require_once '../config.php';
 header('Content-Type: application/json');
 
-$action = $_GET['action'] ?? 'fetchAll';
+// Determine action from GET or POST
+$action = $_POST['action'] ?? $_GET['action'] ?? 'fetchAll';
 $response = ['success' => false, 'data' => []];
 
 try {
     switch ($action) {
+        case 'deleteAllOrders':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new Exception('Invalid request method.');
+            }
+            $conn->begin_transaction();
+            try {
+                // It's safer to disable foreign key checks temporarily
+                $conn->query("SET FOREIGN_KEY_CHECKS=0");
+                
+                // List of tables to truncate
+                $tables = ["payments", "order_details", "orders", "customer_parties"];
+                foreach ($tables as $table) {
+                    if ($conn->query("TRUNCATE TABLE `$table`") === FALSE) {
+                        throw new Exception("Failed to truncate table: $table");
+                    }
+                }
+                
+                // Re-enable foreign key checks
+                $conn->query("SET FOREIGN_KEY_CHECKS=1");
+                
+                $conn->commit();
+                $response = ['success' => true, 'message' => 'All order data has been successfully deleted.'];
+            } catch (Exception $e) {
+                $conn->rollback();
+                $conn->query("SET FOREIGN_KEY_CHECKS=1"); // Ensure it's re-enabled on failure
+                throw $e;
+            }
+            break;
+
+        case 'deleteOrder':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                throw new Exception('Invalid request method.');
+            }
+            $order_id = filter_input(INPUT_POST, 'order_id', FILTER_VALIDATE_INT);
+            if (!$order_id) {
+                throw new Exception('Invalid Order ID.');
+            }
+
+            $conn->begin_transaction();
+
+            try {
+                // Get PartyID before deleting the order
+                $stmt_party = $conn->prepare("SELECT PartyID FROM orders WHERE OrderID = ?");
+                $stmt_party->bind_param("i", $order_id);
+                $stmt_party->execute();
+                $party_result = $stmt_party->get_result();
+                $party_id = ($party_result->num_rows > 0) ? $party_result->fetch_assoc()['PartyID'] : null;
+                $stmt_party->close();
+
+                // 1. Delete associated payments first to avoid foreign key constraints
+                $stmt_delete_payments = $conn->prepare("DELETE FROM payments WHERE OrderID = ?");
+                $stmt_delete_payments->bind_param("i", $order_id);
+                $stmt_delete_payments->execute();
+                $stmt_delete_payments->close();
+
+                // 2. Delete the order (order_details will be cascade deleted)
+                $stmt_delete_order = $conn->prepare("DELETE FROM orders WHERE OrderID = ?");
+                $stmt_delete_order->bind_param("i", $order_id);
+                $stmt_delete_order->execute();
+                $deleted_rows = $stmt_delete_order->affected_rows;
+                $stmt_delete_order->close();
+
+                if ($deleted_rows === 0) {
+                    throw new Exception("Order not found or already deleted.");
+                }
+
+                // 3. If a party was associated, check if it has other orders. If not, delete it.
+                if ($party_id) {
+                    $stmt_check = $conn->prepare("SELECT COUNT(*) as order_count FROM orders WHERE PartyID = ?");
+                    $stmt_check->bind_param("i", $party_id);
+                    $stmt_check->execute();
+                    $order_count = $stmt_check->get_result()->fetch_assoc()['order_count'];
+                    $stmt_check->close();
+
+                    if ($order_count == 0) {
+                        $stmt_delete_party = $conn->prepare("DELETE FROM customer_parties WHERE PartyID = ?");
+                        $stmt_delete_party->bind_param("i", $party_id);
+                        $stmt_delete_party->execute();
+                        $stmt_delete_party->close();
+                    }
+                }
+
+                $conn->commit();
+                $response = ['success' => true, 'message' => 'Order deleted successfully.'];
+
+            } catch (Exception $e) {
+                $conn->rollback();
+                throw $e; // Re-throw to be caught by the outer catch block
+            }
+            break;
+
         case 'fetchActiveOrders':
             $sql = "SELECT o.OrderID, o.OrderTime, o.OrderStatus, t.TableNumber, cp.PartyIdentifier, s.FirstName 
                     FROM orders o

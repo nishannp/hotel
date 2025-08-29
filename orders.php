@@ -32,7 +32,52 @@ require_once 'includes/header.php';
 .content-wrapper { background-color: var(--bg-main); font-family: var(--font-family); }
 .content-header h1 { color: var(--text-primary) !important; font-weight: 600 !important; }
 .page-container { padding: 2rem; }
-.section-header { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem; }
+.section-header { 
+    font-size: 1.5rem; 
+    font-weight: 600; 
+    color: var(--text-primary); 
+    margin-bottom: 1.5rem; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+.header-actions button {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.header-actions .btn-danger {
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.header-actions .btn-danger:hover {
+    background-color: #fee2e2;
+}
+
+.header-actions .btn-download {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.header-actions .btn-download:hover {
+    background-color: #e0e7ff;
+}
+
+.header-actions .btn-download:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 /* Active Orders Section */
 #activeOrdersGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
@@ -61,6 +106,11 @@ require_once 'includes/header.php';
 #ordersList { display: flex; flex-direction: column; gap: 0.75rem; }
 .order-item { background-color: var(--bg-content); border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: box-shadow 0.2s ease; }
 .order-summary { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto; align-items: center; padding: 1rem 1.5rem; cursor: pointer; }
+.order-summary { display: grid; grid-template-columns: repeat(5, 1fr) auto; align-items: center; padding: 1rem 1.5rem; cursor: pointer; }
+.order-actions { display: flex; align-items: center; gap: 0.5rem; }
+.btn-delete-order { background: none; border: none; color: var(--danger-color); cursor: pointer; padding: 4px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; transition: background-color 0.2s; }
+.btn-delete-order:hover { background-color: #fee2e2; }
+.btn-delete-order .material-icons-outlined { font-size: 20px; }
 .order-summary > div { display: flex; flex-direction: column; }
 .order-summary .label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
 .order-summary .value { font-weight: 500; color: var(--text-primary); }
@@ -106,7 +156,18 @@ require_once 'includes/header.php';
         <p>All pending and in-progress orders will appear here.</p>
     </div>
 
-    <h2 class="section-header" style="margin-top: 2rem;">Order History</h2>
+    <div class="section-header">
+        <h2 style="margin: 0;">Order History</h2>
+        <div class="header-actions">
+            <button id="btnDownloadReport" class="btn-download" disabled>
+                <span class="material-icons-outlined">download</span> Download Report
+            </button>
+            <button id="btnDeleteAll" class="btn-danger">
+                <span class="material-icons-outlined">delete_sweep</span> Delete All Orders
+            </button>
+        </div>
+    </div>
+    
     <div class="filters-bar">
         <div class="search-bar">
             <span class="material-icons-outlined">search</span>
@@ -143,6 +204,8 @@ document.addEventListener('DOMContentLoaded', function() {
             statusFilters: document.getElementById('statusFilters'),
             datePicker: document.getElementById('dateRangePicker'),
             paginationContainer: document.getElementById('paginationContainer'),
+            btnDeleteAll: document.getElementById('btnDeleteAll'),
+            btnDownloadReport: document.getElementById('btnDownloadReport'),
         },
         state: {
             activeOrders: [],
@@ -173,9 +236,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (selectedDates.length === 2) {
                         this.state.filters.startDate = this.formatDate(selectedDates[0]);
                         this.state.filters.endDate = this.formatDate(selectedDates[1]);
+                        this.elements.btnDownloadReport.disabled = false;
                     } else {
                         this.state.filters.startDate = '';
                         this.state.filters.endDate = '';
+                        this.elements.btnDownloadReport.disabled = true;
                     }
                     this.fetchOrderHistory(1);
                 }
@@ -183,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         bindEvents() {
+            this.elements.btnDeleteAll.addEventListener('click', () => this.handleDeleteAllOrders());
+            this.elements.btnDownloadReport.addEventListener('click', () => this.downloadReport());
+
             this.elements.searchInput.addEventListener('input', (e) => {
                 this.state.filters.searchTerm = e.target.value.toLowerCase();
                 this.fetchOrderHistory(1);
@@ -198,7 +266,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             this.elements.historyList.addEventListener('click', (e) => {
                 const summary = e.target.closest('.order-summary');
-                if (summary) summary.parentElement.classList.toggle('open');
+                const deleteBtn = e.target.closest('.btn-delete-order');
+
+                if (deleteBtn) {
+                    e.stopPropagation(); // prevent accordion from opening
+                    const orderId = deleteBtn.dataset.orderId;
+                    this.handleDeleteOrder(orderId);
+                    return;
+                }
+
+                if (summary) {
+                    summary.parentElement.classList.toggle('open');
+                }
             });
             this.elements.paginationContainer.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON' && e.target.dataset.page) {
@@ -207,6 +286,74 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         },
         
+        handleDeleteOrder(orderId) {
+            if (confirm(`Are you sure you want to delete Order #${orderId}? This action cannot be undone.`)) {
+                this.deleteOrder(orderId);
+            }
+        },
+
+        async deleteOrder(orderId) {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'deleteOrder');
+                formData.append('order_id', orderId);
+
+                const response = await fetch('ajax/ajax_handler_orders.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    this.fetchOrderHistory(this.state.pagination.currentPage || 1);
+                    this.loadActiveOrders();
+                } else {
+                    alert('Error deleting order: ' + data.message);
+                }
+            } catch (error) {
+                console.error("Error deleting order:", error);
+                alert('An error occurred while deleting the order.');
+            }
+        },
+
+        handleDeleteAllOrders() {
+            if (confirm('ARE YOU SURE?\nThis will permanently delete all orders, payments, and party information. This action cannot be undone.')) {
+                this.deleteAllOrders();
+            }
+        },
+
+        async deleteAllOrders() {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'deleteAllOrders');
+                const response = await fetch('ajax/ajax_handler_orders.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('All order data has been deleted.');
+                    this.fetchOrderHistory(1);
+                    this.loadActiveOrders();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error("Error deleting all orders:", error);
+                alert('An error occurred.');
+            }
+        },
+
+        downloadReport() {
+            const { startDate, endDate } = this.state.filters;
+            if (!startDate || !endDate) {
+                alert('Please select a valid date range first.');
+                return;
+            }
+            const url = `generate_report.php?startDate=${startDate}&endDate=${endDate}`;
+            window.open(url, '_blank');
+        },
+
         async loadActiveOrders() {
             try {
                 const response = await fetch('ajax/ajax_handler_orders.php?action=fetchActiveOrders');
@@ -326,7 +473,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div><span class="label">Date & Time</span><span class="value">${new Date(order.OrderTime).toLocaleString()}</span></div>
                         <div><span class="label">Status</span><span class="value"><span class="status-badge-history status-${order.OrderStatus}">${order.OrderStatus}</span></span></div>
                         <div><span class="label">Total</span><span class="value">Rs ${parseFloat(order.TotalAmount).toFixed(2)}</span></div>
-                        <div class="expand-icon"><span class="material-icons-outlined">expand_more</span></div>
+                        <div class="order-actions">
+                            <button class="btn-delete-order" data-order-id="${order.OrderID}" title="Delete Order">
+                                <span class="material-icons-outlined">delete_outline</span>
+                            </button>
+                            <div class="expand-icon"><span class="material-icons-outlined">expand_more</span></div>
+                        </div>
                     </div>
                     <div class="order-details"><div class="details-content"><h4>Order Details</h4>${detailsHtml || '<p>No item details available.</p>'}</div></div>
                 </div>

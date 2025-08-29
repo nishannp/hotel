@@ -105,11 +105,29 @@ try {
             $transaction_id = filter_input(INPUT_POST, 'transaction_id', FILTER_SANITIZE_SPECIAL_CHARS);
             $transaction_id = !empty($transaction_id) ? $transaction_id : null;
 
-            if (!$order_id || !isset($amount_paid) || !$payment_method || !$staff_id) {
+            if (!$order_id || !isset($amount_paid) || !$payment_method) {
                 send_error('All required fields must be filled correctly.');
             }
 
             $conn->begin_transaction();
+
+            // Determine the staff ID to process the payment.
+            // Since only admins can log in, we'll assign this to a default manager/cashier.
+            $staff_id_to_process = null;
+            $staff_query = "SELECT StaffID FROM staff WHERE Role IN ('Manager', 'Cashier') AND IsActive = TRUE ORDER BY StaffID LIMIT 1";
+            $staff_result = $conn->query($staff_query);
+            if ($staff_result && $staff_result->num_rows > 0) {
+                $staff_id_to_process = $staff_result->fetch_assoc()['StaffID'];
+            } else {
+                // Fallback: if no manager/cashier, use the very first active staff member
+                $fallback_query = "SELECT StaffID FROM staff WHERE IsActive = TRUE ORDER BY StaffID LIMIT 1";
+                $fallback_result = $conn->query($fallback_query);
+                if ($fallback_result && $fallback_result->num_rows > 0) {
+                    $staff_id_to_process = $fallback_result->fetch_assoc()['StaffID'];
+                } else {
+                    throw new Exception("No active staff available to process the payment.");
+                }
+            }
 
             // 1. Update the final TotalAmount in the orders table.
             $stmt_update = $conn->prepare("UPDATE orders SET TotalAmount = ? WHERE OrderID = ?");
@@ -119,7 +137,7 @@ try {
 
             // 2. Insert the payment record.
             $stmt_insert = $conn->prepare("INSERT INTO payments (OrderID, AmountPaid, PaymentMethod, ProcessedByStaffID, TransactionID) VALUES (?, ?, ?, ?, ?)");
-            $stmt_insert->bind_param("idsis", $order_id, $amount_paid, $payment_method, $staff_id, $transaction_id);
+            $stmt_insert->bind_param("idsis", $order_id, $amount_paid, $payment_method, $staff_id_to_process, $transaction_id);
             if (!$stmt_insert->execute()) throw new Exception("Failed to insert payment record: " . $stmt_insert->error);
             $stmt_insert->close();
 
