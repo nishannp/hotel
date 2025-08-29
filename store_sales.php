@@ -97,11 +97,14 @@ require_once 'includes/header.php';
                 </div>
                 <!-- Cart Footer -->
                 <div class="border-t pt-4 mt-4">
-                    <div class="flex justify-between items-center font-bold text-lg">
-                        <span>Grand Total:</span>
-                        <span id="grandTotal">Rs. 0.00</span>
+                    <div class="flex justify-between items-center font-bold text-lg mb-2">
+                        <label for="grandTotalInput" class="text-gray-800">Grand Total:</label>
+                        <div class="flex items-center">
+                            <span class="mr-1 text-gray-800">Rs.</span>
+                            <input type="number" id="grandTotalInput" class="text-right font-bold text-lg border-2 border-gray-200 bg-gray-50 rounded-md p-1 focus:outline-none focus:border-blue-500 focus:bg-white transition-all w-40" step="0.01">
+                        </div>
                     </div>
-                    <button id="recordSaleBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mt-4 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <button id="recordSaleBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mt-2 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
                         Record Sale
                     </button>
                 </div>
@@ -181,7 +184,7 @@ require_once 'includes/header.php';
             searchInput: document.getElementById('searchInput'),
             categoryFilters: document.getElementById('categoryFilters'),
             cartItemsContainer: document.getElementById('cartItemsContainer'),
-            grandTotal: document.getElementById('grandTotal'),
+            grandTotalInput: document.getElementById('grandTotalInput'),
             cartCountBadge: document.getElementById('cartCountBadge'),
             recordSaleBtn: document.getElementById('recordSaleBtn'),
             emptyCartMessage: document.getElementById('emptyCartMessage'),
@@ -391,7 +394,7 @@ require_once 'includes/header.php';
         
         function updateCartSummary() {
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            DOMElements.grandTotal.textContent = formatCurrency(total);
+            DOMElements.grandTotalInput.value = total.toFixed(2);
             const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
             DOMElements.cartCountBadge.textContent = itemCount;
             DOMElements.cartCountBadge.style.display = itemCount > 0 ? 'inline-block' : 'none';
@@ -406,13 +409,22 @@ require_once 'includes/header.php';
         async function handleRecordSale() {
             if (cart.length === 0) return;
             
+            const finalTotal = parseFloat(DOMElements.grandTotalInput.value);
+            if (isNaN(finalTotal) || finalTotal < 0) {
+                showToast('Invalid total amount.', 'error');
+                return;
+            }
+
             const cartData = cart.map(item => ({ id: item.id, quantity: item.quantity }));
             
             showConfirmation(
                 'Confirm Sale',
-                `Record this sale with a total of ${DOMElements.grandTotal.textContent}?`,
+                `Record this sale with a total of ${formatCurrency(finalTotal)}?`,
                 async () => {
-                    const result = await apiCall('recordSale', { cart: JSON.stringify(cartData) });
+                    const result = await apiCall('recordSale', { 
+                        cart: JSON.stringify(cartData),
+                        final_total: finalTotal
+                    });
                     if (result !== null) {
                         showToast('Sale recorded successfully!', 'success');
                         clearCart();

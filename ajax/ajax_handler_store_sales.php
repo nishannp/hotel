@@ -68,16 +68,36 @@ switch ($action) {
 
     case 'recordSale':
         $cart_json = $_POST['cart'] ?? '[]';
+        $final_total = filter_input(INPUT_POST, 'final_total', FILTER_VALIDATE_FLOAT);
         $cart = json_decode($cart_json, true);
 
-        if (empty($cart) || !is_array($cart)) {
-            $response['message'] = 'The cart is empty or invalid.';
+        if (empty($cart) || !is_array($cart) || $final_total === false || $final_total < 0) {
+            $response['message'] = 'The cart is empty or the total is invalid.';
             break;
         }
 
         $conn->begin_transaction();
 
         try {
+            $original_total = 0;
+            $item_prices = [];
+
+            // First, calculate the original total and fetch prices
+            foreach ($cart as $item) {
+                $item_id = $item['id'];
+                $quantity = $item['quantity'];
+                
+                $price_res = $conn->query("SELECT Price FROM store_items WHERE StoreItemID = $item_id");
+                if ($price_res->num_rows === 0) throw new Exception("Item with ID $item_id not found.");
+                
+                $price = $price_res->fetch_assoc()['Price'];
+                $item_prices[$item_id] = $price;
+                $original_total += $price * $quantity;
+            }
+
+            // Determine the adjustment ratio
+            $adjustment_ratio = ($original_total > 0) ? ($final_total / $original_total) : 1;
+
             $transaction_id = 'SALE-' . uniqid();
             $sql = "INSERT INTO store_sales_log (TransactionID, StoreItemID, Quantity, SalePrice) VALUES (?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
@@ -85,15 +105,12 @@ switch ($action) {
             foreach ($cart as $item) {
                 $item_id = $item['id'];
                 $quantity = $item['quantity'];
+                $original_price = $item_prices[$item_id];
                 
-                // Get the current price to prevent price-tampering
-                $price_res = $conn->query("SELECT Price FROM store_items WHERE StoreItemID = $item_id");
-                if ($price_res->num_rows === 0) {
-                    throw new Exception("Item with ID $item_id not found.");
-                }
-                $sale_price = $price_res->fetch_assoc()['Price'];
+                // Apply the adjustment to get the final sale price for this item
+                $final_sale_price = $original_price * $adjustment_ratio;
 
-                $stmt->bind_param("siid", $transaction_id, $item_id, $quantity, $sale_price);
+                $stmt->bind_param("siid", $transaction_id, $item_id, $quantity, $final_sale_price);
                 if (!$stmt->execute()) {
                     throw new Exception("Failed to record sale for item ID $item_id: " . $stmt->error);
                 }
